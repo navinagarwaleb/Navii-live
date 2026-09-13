@@ -605,29 +605,29 @@ export function RequestWizard() {
                 Which sound like you?
               </p>
 
-              <div className="-mx-[18px] overflow-x-auto px-[18px] scrollbar-none sm:-mx-5 sm:px-5">
-                <div className="flex w-max gap-2 pb-1">
-                  {availableFilters.map((filter) => {
-                    const selected = genreFilter === filter;
-                    const count = tagCounts[filter] ?? 0;
-                    return (
-                      <button
-                        key={filter}
-                        type="button"
-                        onClick={() => setGenreFilter(filter)}
-                        className={cn(
-                          "min-h-[32px] shrink-0 rounded-full border border-border bg-field px-3.5 py-1.5 text-[12px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
-                          !selected && "hover:border-border hover:bg-field",
-                          selected &&
-                            "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
-                        )}
-                      >
-                        {filter}
-                        <span className="ml-1.5 text-muted">({count})</span>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="flex flex-wrap gap-1.5">
+                {availableFilters.map((filter) => {
+                  const selected = genreFilter === filter;
+                  const count = tagCounts[filter] ?? 0;
+                  return (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setGenreFilter(filter)}
+                      className={cn(
+                        "min-h-[28px] rounded-full border border-border bg-field px-3 py-1 text-[11px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
+                        !selected && "hover:border-border hover:bg-field",
+                        selected &&
+                          "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
+                      )}
+                    >
+                      {filter}
+                      <span className="ml-1 text-[10px] text-muted">
+                        ({count})
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
