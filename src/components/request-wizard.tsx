@@ -182,7 +182,6 @@ export function RequestWizard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [requesterName, setRequesterName] = useState("");
   const [dedication, setDedication] = useState("");
-  const [skipDedication, setSkipDedication] = useState(false);
   const [customTip, setCustomTip] = useState("");
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -344,7 +343,7 @@ export function RequestWizard() {
       : step === 2 && !song
         ? "Pick a song to continue"
         : step === 3 && !requesterName.trim()
-          ? "Add your name or table to continue"
+          ? "Add your name to continue"
           : undefined;
 
   function resetWizard() {
@@ -355,7 +354,6 @@ export function RequestWizard() {
     setSearchQuery("");
     setRequesterName("");
     setDedication("");
-    setSkipDedication(false);
     setSubmittedRequest(null);
     setError("");
     setCustomTip("");
@@ -367,12 +365,13 @@ export function RequestWizard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function submitRequest() {
+  async function submitRequest(dedicationOverride?: string) {
     if (!song || !occasion || !requesterName.trim()) return;
 
     setSubmitting(true);
     setError("");
-    const dedicationValue = skipDedication ? "" : dedication;
+    const dedicationValue =
+      dedicationOverride !== undefined ? dedicationOverride : dedication;
 
     if (supabase) {
       const { data: insertedRequest, error: submitError } = await supabase
@@ -694,14 +693,14 @@ export function RequestWizard() {
             <StepIntro
               eyebrow="Make it personal"
               title="Who is this from?"
-              description="Your name or table number so I know who to shout out."
+              description="Your name so I know who to shout out."
             />
             <Card className="mt-6 bg-surface p-6 shadow-none">
               <label
                 htmlFor="requester-name"
                 className="mb-3 block text-sm font-medium text-mist"
               >
-                Your name or table
+                Your name
               </label>
               <Input
                 id="requester-name"
@@ -710,7 +709,7 @@ export function RequestWizard() {
                 maxLength={60}
                 value={requesterName}
                 onChange={(event) => setRequesterName(event.target.value)}
-                placeholder="e.g. Emma · Table 4"
+                placeholder="e.g. Emma"
               />
             </Card>
           </>
@@ -735,19 +734,18 @@ export function RequestWizard() {
                 autoFocus
                 maxLength={120}
                 value={dedication}
-                onChange={(event) => {
-                  setDedication(event.target.value);
-                  setSkipDedication(false);
-                }}
+                onChange={(event) => setDedication(event.target.value)}
                 placeholder="e.g. My wonderful parents"
+                disabled={submitting}
               />
             </Card>
 
             <SelectionTile
-              selected={skipDedication}
+              selected={false}
+              disabled={submitting}
               onClick={() => {
                 setDedication("");
-                setSkipDedication(true);
+                void submitRequest("");
               }}
               className="mt-3 min-h-[92px] w-full gap-1 px-4 py-4"
             >
@@ -762,7 +760,7 @@ export function RequestWizard() {
                 Skip dedication
               </span>
               <span className="text-[12px] leading-[1.25] text-muted">
-                Just send the song request as is
+                Send the request without a dedication.
               </span>
             </SelectionTile>
 
@@ -782,7 +780,9 @@ export function RequestWizard() {
         <div
           className={cn(
             "pointer-events-auto mx-auto grid w-full max-w-[496px] gap-2.5 rounded-[20px] bg-paper p-3.5 shadow-dock",
-            step === 1 ? "grid-cols-1" : "grid-cols-[auto_1fr]",
+            step === 1 || (step === 4 && !dedication.trim())
+              ? "grid-cols-1"
+              : "grid-cols-[auto_1fr]",
           )}
         >
           {step > 1 && (
@@ -810,7 +810,7 @@ export function RequestWizard() {
               Continue
               <ArrowRight size={16} />
             </Button>
-          ) : (
+          ) : dedication.trim() ? (
             <Button
               type="button"
               size="lg"
@@ -822,7 +822,7 @@ export function RequestWizard() {
               {submitting ? "Sending..." : "Submit Request"}
               {!submitting && <ArrowRight size={16} />}
             </Button>
-          )}
+          ) : null}
         </div>
         {step < 4 && !canContinue && continueHint ? (
           <p className="pointer-events-none mx-auto mt-2 max-w-[496px] text-center text-xs text-mist">

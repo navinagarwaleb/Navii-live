@@ -21,12 +21,11 @@ export default function Home() {
         </p>
 
         <h1 className="animate-rise rise-2 mt-4 font-serif text-[clamp(2.4rem,8vw,3.5rem)] leading-[1.15] font-semibold tracking-[-0.01em] text-deep-blue">
-          Make tonight unforgettable.
+          Make the moment unforgettable.
         </h1>
 
         <p className="animate-rise rise-3 mt-4 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
-          Request a song, add a dedication, and let Navii bring your moment to
-          life.
+Request a song, add a dedication, and make the moment yours.
         </p>
 
         <div className="animate-rise rise-4 mt-8 grid gap-3">
