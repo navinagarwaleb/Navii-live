@@ -1,6 +1,7 @@
--- Navii Live — acoustic cover repertoire seed (90 songs)
--- Run in Supabase SQL Editor. Safe to re-run.
--- Updates tags on existing title+artist matches, inserts any missing rows.
+-- After running 20260913_multi_tenant_performers.sql, assign seed songs:
+-- update public.songs set performer_id = (select id from public.performers where username = 'navii')
+-- where performer_id is null;
+
 
 begin;
 
@@ -116,5 +117,11 @@ where not exists (
   where lower(s.title) = lower(r.title)
     and lower(s.artist) = lower(r.artist)
 );
+
+update public.songs s
+set performer_id = p.id
+from public.performers p
+where p.username = 'navii'
+  and s.performer_id is null;
 
 commit;

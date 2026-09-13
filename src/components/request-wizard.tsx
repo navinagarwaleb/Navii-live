@@ -17,17 +17,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
-import type { Song, SongRequest } from "@/lib/types";
+import type { Performer, Song, SongRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TOTAL_STEPS = 5;
 
-const STEP_TITLES: Record<number, string> = {
-  1: "What’s the occasion? · Navii Live",
-  2: "What song are we playing? · Navii Live",
-  3: "Who is this from? · Navii Live",
-  4: "Add a dedication? · Navii Live",
-  5: "Your request is in! · Navii Live",
+const STEP_LABELS: Record<number, string> = {
+  1: "What’s the occasion?",
+  2: "What song are we playing?",
+  3: "Who is this from?",
+  4: "Add a dedication?",
+  5: "Your request is in!",
 };
 
 /** Preferred chip order when present; any other Supabase tags still appear after. */
@@ -172,7 +172,8 @@ function StepIntro({
   );
 }
 
-export function RequestWizard() {
+export function RequestWizard({ performer }: { performer: Performer }) {
+  const tipHandle = performer.tip_handle?.trim() || "";
   const [supabase] = useState(() => createSupabaseBrowserClient());
   const [step, setStep] = useState(1);
   const [occasion, setOccasion] = useState("");
@@ -190,8 +191,9 @@ export function RequestWizard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    document.title = STEP_TITLES[step] ?? "Navii Live";
-  }, [step]);
+    const label = STEP_LABELS[step] ?? "Request a song";
+    document.title = `${label} · ${performer.display_name}`;
+  }, [step, performer.display_name]);
 
   useEffect(() => {
     let active = true;
@@ -207,8 +209,9 @@ export function RequestWizard() {
 
       const { data, error: songsError } = await supabase
         .from("songs")
-        .select("id,title,artist,active,tags")
+        .select("id,title,artist,active,tags,performer_id")
         .eq("active", true)
+        .eq("performer_id", performer.id)
         .order("title", { ascending: true })
         .limit(1000);
 
@@ -240,7 +243,7 @@ export function RequestWizard() {
     return () => {
       active = false;
     };
-  }, [supabase]);
+  }, [supabase, performer.id]);
 
   useEffect(() => {
     if (step !== 5) return;
@@ -384,6 +387,7 @@ export function RequestWizard() {
           requester_name: requesterName.trim(),
           dedication: dedicationValue.trim() || null,
           status: "pending",
+          performer_id: performer.id,
         })
         .select("*")
         .single();
@@ -420,9 +424,13 @@ export function RequestWizard() {
           Your song is in the queue!
         </h1>
         <p className="mt-3 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
-          Navii has your request for{" "}
+          {performer.display_name} has your request for{" "}
           <strong className="font-semibold text-ink">
             {submittedRequest?.song_title ?? song?.title}
+          </strong>
+          {" by "}
+          <strong className="font-semibold text-ink">
+            {submittedRequest?.artist ?? song?.artist}
           </strong>
           . Listen out for your moment.
         </p>
@@ -450,7 +458,13 @@ export function RequestWizard() {
             ].map((tip) => (
               <a
                 key={tip.amount}
-                href={`https://www.buymeacoffee.com/navii.live?amount=${tip.amount}`}
+                href={
+                  tipHandle
+                    ? tipHandle.startsWith("http")
+                      ? `${tipHandle}${tipHandle.includes("?") ? "&" : "?"}amount=${tip.amount}`
+                      : `https://www.buymeacoffee.com/${tipHandle}?amount=${tip.amount}`
+                    : `https://www.buymeacoffee.com/${performer.username}?amount=${tip.amount}`
+                }
                 target="_blank"
                 rel="noreferrer"
                 className="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-2xl border border-border bg-surface text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-selected active:scale-[0.97]"
@@ -482,8 +496,8 @@ export function RequestWizard() {
               <a
                 href={
                   customTip && Number(customTip) > 0
-                    ? `https://www.buymeacoffee.com/navii.live?amount=${encodeURIComponent(customTip)}`
-                    : "https://www.buymeacoffee.com/navii.live"
+                    ? `https://www.buymeacoffee.com/${performer.username}?amount=${encodeURIComponent(customTip)}`
+                    : `https://www.buymeacoffee.com/${performer.username}`
                 }
                 target="_blank"
                 rel="noreferrer"
@@ -495,13 +509,13 @@ export function RequestWizard() {
           </details>
 
           <a
-            href="https://instagram.com/navii.live"
+            href={`https://instagram.com/${performer.username}`}
             target="_blank"
             rel="noreferrer"
             className="mt-4 flex min-h-[44px] items-center justify-center gap-2 text-sm font-semibold text-mist transition hover:text-deep-blue"
           >
             <AtSign size={15} />
-            Follow @navii.live
+            Follow @{performer.username}
           </a>
         </Card>
 
@@ -522,10 +536,10 @@ export function RequestWizard() {
       <header className="sticky top-0 z-10 overflow-hidden bg-paper px-[18px] pt-[calc(env(safe-area-inset-top)+22px)] sm:px-5">
         <div className="flex items-center justify-between gap-3 pb-3.5">
           <a
-            href="/"
+            href={`/${performer.username}`}
             className="font-serif text-lg font-semibold tracking-[-0.01em] text-deep-blue transition-opacity hover:opacity-70"
           >
-            Navii Live
+            {performer.display_name}
           </a>
           <span className="text-xs font-medium text-mist">
             Step {step} of {TOTAL_STEPS}

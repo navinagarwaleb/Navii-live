@@ -11,8 +11,14 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  AdminOnboardingBanner,
+  AdminPromptCards,
+} from "@/components/admin-onboarding";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
-import type { RequestStatus, SongRequest } from "@/lib/types";
+import type { Performer, RequestStatus, SongRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const occasionEmoji: Record<string, string> = {
@@ -177,14 +183,23 @@ function HistoryRequestRow({
 }
 
 export function AdminDashboard({
+  performer,
+  siteUrl,
   initialRequests,
   initialError = "",
 }: {
+  performer: Performer;
+  siteUrl: string;
   initialRequests: SongRequest[];
   initialError?: string;
 }) {
+  const router = useRouter();
   const [supabase] = useState(() => createSupabaseBrowserClient());
-  const [requests, setRequests] = useState(() => sortRequests(initialRequests));
+  const [requests, setRequests] = useState(() =>
+    sortRequests(
+      initialRequests.filter((item) => item.performer_id === performer.id),
+    ),
+  );
   const [connected, setConnected] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState(initialError);
@@ -207,10 +222,15 @@ export function AdminDashboard({
     let isActive = true;
 
     const channel = supabase
-      .channel("admin-requests")
+      .channel(`admin-requests-${performer.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "requests" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "requests",
+          filter: `performer_id=eq.${performer.id}`,
+        },
         (payload) => {
           const incoming = payload.new as SongRequest;
           setRequests((current) => [
@@ -221,7 +241,12 @@ export function AdminDashboard({
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "requests" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "requests",
+          filter: `performer_id=eq.${performer.id}`,
+        },
         (payload) => {
           const incoming = payload.new as SongRequest;
           setRequests((current) =>
@@ -234,7 +259,12 @@ export function AdminDashboard({
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "requests" },
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "requests",
+          filter: `performer_id=eq.${performer.id}`,
+        },
         (payload) => {
           const deleted = payload.old as Pick<SongRequest, "id">;
           setRequests((current) =>
@@ -266,27 +296,26 @@ export function AdminDashboard({
       isActive = false;
       void supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, performer.id]);
 
   useEffect(() => {
-    if (connected) return;
+    if (connected || !supabase) return;
 
+    const client = supabase;
     let active = true;
     async function pollRequests() {
       try {
-        const response = await fetch("/api/admin/requests", {
-          cache: "no-store",
-        });
-        const body = (await response.json()) as {
-          requests?: SongRequest[];
-          error?: string;
-        };
+        const { data, error: pollError } = await client
+          .from("requests")
+          .select("*")
+          .eq("performer_id", performer.id)
+          .in("status", ["pending", "accepted", "played", "rejected"])
+          .order("created_at", { ascending: false })
+          .limit(1000);
 
-        if (!response.ok) {
-          throw new Error(body.error ?? "Admin polling request failed.");
-        }
+        if (pollError) throw pollError;
         if (active) {
-          setRequests(sortRequests(body.requests ?? []));
+          setRequests(sortRequests((data as SongRequest[]) ?? []));
         }
       } catch (pollError) {
         console.error("Admin polling fallback failed:", pollError);
@@ -300,7 +329,7 @@ export function AdminDashboard({
       active = false;
       window.clearInterval(interval);
     };
-  }, [connected]);
+  }, [connected, supabase, performer.id]);
 
   const activeQueue = useMemo(
     () =>
@@ -328,17 +357,18 @@ export function AdminDashboard({
   );
 
   async function updateStatus(id: string, status: RequestStatus) {
+    if (!supabase) return;
     setUpdating(id);
     setError("");
-    const response = await fetch(`/api/admin/requests/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
 
-    if (!response.ok) {
-      const body = (await response.json()) as { error?: string };
-      setError(body.error ?? "Could not update this request.");
+    const { error: updateError } = await supabase
+      .from("requests")
+      .update({ status })
+      .eq("id", id)
+      .eq("performer_id", performer.id);
+
+    if (updateError) {
+      setError(updateError.message || "Could not update this request.");
     } else {
       setRequests((current) =>
         sortRequests(
@@ -350,8 +380,9 @@ export function AdminDashboard({
   }
 
   async function logout() {
-    await fetch("/api/admin/logout", { method: "POST" });
-    window.location.reload();
+    if (supabase) await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
   }
 
   return (
@@ -364,22 +395,39 @@ export function AdminDashboard({
             </span>
             <div>
               <p className="text-xs font-bold tracking-[0.18em] text-[#A8A29E] uppercase">
-                Navii Live
+                {performer.display_name}
               </p>
               <h1 className="font-serif text-2xl leading-relaxed font-semibold tracking-[-0.02em]">
                 Stage queue
               </h1>
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="Log out"
-            onClick={() => void logout()}
-            className="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-full border border-white/15 text-[#FAFAF9] transition hover:bg-white/10"
-          >
-            <LogOut size={19} />
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/settings"
+              className="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-full border border-white/15 text-[#FAFAF9] transition hover:bg-white/10"
+              aria-label="Profile settings"
+            >
+              <UserRound size={19} />
+            </Link>
+            <button
+              type="button"
+              aria-label="Log out"
+              onClick={() => void logout()}
+              className="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-full border border-white/15 text-[#FAFAF9] transition hover:bg-white/10"
+            >
+              <LogOut size={19} />
+            </button>
+          </div>
         </header>
+
+        <div className="mt-8">
+          <AdminOnboardingBanner performer={performer} siteUrl={siteUrl} />
+        </div>
+
+        <div className="mt-5">
+          <AdminPromptCards />
+        </div>
 
         <section className="mt-8 grid grid-cols-2 gap-3">
           <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
@@ -439,7 +487,7 @@ export function AdminDashboard({
                 Queue is clear
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">
-                New pending requests will appear here for immediate action.
+                Share /{performer.username} — new requests appear here.
               </p>
             </div>
           ) : (

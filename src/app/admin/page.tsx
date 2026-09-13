@@ -1,43 +1,76 @@
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin-dashboard";
-import { AdminLogin } from "@/components/admin-login";
-import { ADMIN_COOKIE, isValidAdminSession } from "@/lib/admin-auth";
-import { createSupabaseAdminClient } from "@/lib/supabase-server";
-import type { SongRequest } from "@/lib/types";
+import {
+  createSupabaseAdminClient,
+  createSupabaseServerClient,
+} from "@/lib/supabase-server";
+import type { Performer, SongRequest } from "@/lib/types";
 
 export default async function AdminPage() {
-  const cookieStore = await cookies();
-  const authenticated = isValidAdminSession(
-    cookieStore.get(ADMIN_COOKIE)?.value,
-  );
-
-  if (!authenticated) return <AdminLogin />;
-
-  const supabase = createSupabaseAdminClient();
+  const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    return (
-      <AdminDashboard
-        initialRequests={[]}
-        initialError="Add your Supabase credentials to load live requests."
-      />
-    );
+    redirect("/login?error=config");
   }
 
-  const { data, error } = await supabase
-    .from("requests")
-    .select("*")
-    .in("status", ["pending", "accepted", "played", "rejected"])
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (error) {
-    console.error("Initial admin requests query failed:", error);
+  if (!user) {
+    redirect("/login");
   }
+
+  const { data: performer, error: performerError } = await supabase
+    .from("performers")
+    .select(
+      "id,username,display_name,bio,tip_handle,interac_email,user_id,created_at",
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (performerError) {
+    console.error("Unable to load performer for admin:", performerError);
+  }
+
+  if (!performer) {
+    redirect("/setup");
+  }
+
+  const admin = createSupabaseAdminClient();
+  let initialRequests: SongRequest[] = [];
+  let initialError = "";
+
+  if (admin) {
+    const { data, error } = await admin
+      .from("requests")
+      .select("*")
+      .eq("performer_id", performer.id)
+      .in("status", ["pending", "accepted", "played", "rejected"])
+      .order("created_at", { ascending: false })
+      .limit(1000);
+
+    if (error) {
+      console.error("Initial admin requests query failed:", error);
+      initialError = error.message;
+    } else {
+      initialRequests = (data as SongRequest[]) ?? [];
+    }
+  }
+
+  const headerStore = await headers();
+  const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
+  const proto = headerStore.get("x-forwarded-proto") ?? "http";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (host ? `${proto}://${host}` : "http://localhost:3000");
 
   return (
     <AdminDashboard
-      initialRequests={(data as SongRequest[] | null) ?? []}
-      initialError={error?.message}
+      performer={performer as Performer}
+      siteUrl={siteUrl}
+      initialRequests={initialRequests}
+      initialError={initialError}
     />
   );
 }

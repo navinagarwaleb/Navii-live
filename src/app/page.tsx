@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { LandingCtas } from "@/components/landing-ctas";
 
 export default function Home() {
   return (
@@ -17,7 +16,7 @@ export default function Home() {
 
       <section className="relative z-10 py-16">
         <p className="animate-rise rise-1 text-[10px] font-bold tracking-[0.14em] text-[#9b671b] uppercase">
-          Live music · Song requests
+          For live artists
         </p>
 
         <h1 className="animate-rise rise-2 mt-4 font-serif text-[clamp(2.4rem,8vw,3.5rem)] leading-[1.15] font-semibold tracking-[-0.01em] text-deep-blue">
@@ -25,27 +24,14 @@ export default function Home() {
         </h1>
 
         <p className="animate-rise rise-3 mt-4 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
-Request a song, add a dedication, and make the moment yours.
+          Get a free page where your audience can request songs and leave
+          dedications — live, from their phones.
         </p>
 
-        <div className="animate-rise rise-4 mt-8 grid gap-3">
-          <Link
-            href="/request"
-            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-semibold text-surface shadow-cta transition hover:bg-deep-blue active:scale-[0.98]"
-          >
-            Request a Song
-            <ArrowRight size={16} />
-          </Link>
-          <Link
-            href="/songs"
-            className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-border bg-transparent px-6 text-base font-semibold text-ink transition hover:border-line-strong hover:bg-selected active:scale-[0.98]"
-          >
-            Browse the Setlist
-          </Link>
-        </div>
+        <LandingCtas />
 
         <p className="animate-rise rise-5 pt-3 text-center text-[11px] text-mist">
-          No account needed · Free to use
+          Free to start · Your page, your setlist
         </p>
       </section>
 

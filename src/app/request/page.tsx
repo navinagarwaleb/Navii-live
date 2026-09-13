@@ -1,5 +1,6 @@
-import { RequestWizard } from "@/components/request-wizard";
+import { redirect } from "next/navigation";
 
-export default function RequestPage() {
-  return <RequestWizard />;
+/** Legacy route — default performer request flow. */
+export default function RequestRedirectPage() {
+  redirect("/navii/request");
 }
