@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase-server";
+import { PERFORMER_SELECT_SAFE } from "@/lib/performer-select";
 import { RESERVED_USERNAMES } from "@/lib/reserved-usernames";
 import type { Performer } from "@/lib/types";
 
@@ -15,14 +16,15 @@ export async function getPerformerByUsername(
 
   const { data, error } = await supabase
     .from("performers")
-    .select(
-      "id,username,display_name,bio,tip_handle,interac_email,user_id,created_at",
-    )
+    .select(PERFORMER_SELECT_SAFE)
     .eq("username", handle)
     .maybeSingle();
 
   if (error) {
-    console.error("Unable to load performer:", error);
+    console.error(
+      "Unable to load performer:",
+      error.message ?? JSON.stringify(error),
+    );
     return null;
   }
 

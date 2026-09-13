@@ -5,18 +5,19 @@ import {
   Check,
   ChevronDown,
   Clock3,
+  Heart,
   LogOut,
   Music2,
+  QrCode,
   Radio,
   UserRound,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  AdminOnboardingBanner,
-  AdminPromptCards,
-} from "@/components/admin-onboarding";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AdminOnboardingBanner } from "@/components/admin-onboarding";
+import { AdminSongEditor } from "@/components/admin-song-editor";
+import { AdminTipsForm } from "@/components/admin-tips-form";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { Performer, RequestStatus, SongRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,6 @@ const occasionEmoji: Record<string, string> = {
   Anniversary: "💞",
   "Table Hype / Party Starter": "🔥",
   "Late Night Request": "🌙",
-  // Legacy labels still shown for older requests
   "Shoutout / Birthday": "🎉",
   "Table Dedication / Date Night": "🍷",
   "Round of Cheers / Table Anthem": "🍻",
@@ -40,6 +40,20 @@ const statusStyles: Record<RequestStatus, string> = {
   rejected: "bg-white/10 text-[#A8A29E]",
   played: "bg-violet-400/20 text-violet-200",
 };
+
+type AdminTab = "queue" | "live" | "songs" | "tips";
+
+const TABS: { id: AdminTab; label: string; icon: typeof Music2 }[] = [
+  { id: "queue", label: "Queue", icon: Radio },
+  { id: "live", label: "Live", icon: QrCode },
+  { id: "songs", label: "Songs", icon: Music2 },
+  { id: "tips", label: "Tips", icon: Heart },
+];
+
+function parseTab(value: string | null): AdminTab {
+  if (value === "live" || value === "songs" || value === "tips") return value;
+  return "queue";
+}
 
 function sortRequests(items: SongRequest[]) {
   return [...items].sort(
@@ -183,18 +197,25 @@ function HistoryRequestRow({
 }
 
 export function AdminDashboard({
-  performer,
+  performer: initialPerformer,
   siteUrl,
   initialRequests,
   initialError = "",
+  initialTab = "queue",
 }: {
   performer: Performer;
   siteUrl: string;
   initialRequests: SongRequest[];
   initialError?: string;
+  initialTab?: AdminTab;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [supabase] = useState(() => createSupabaseBrowserClient());
+  const [performer, setPerformer] = useState(initialPerformer);
+  const [tab, setTab] = useState<AdminTab>(() =>
+    parseTab(searchParams.get("tab") ?? initialTab),
+  );
   const [requests, setRequests] = useState(() =>
     sortRequests(
       initialRequests.filter((item) => item.performer_id === performer.id),
@@ -209,6 +230,19 @@ export function AdminDashboard({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setTab(parseTab(searchParams.get("tab") ?? initialTab));
+  }, [searchParams, initialTab]);
+
+  function selectTab(next: AdminTab) {
+    setTab(next);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "queue") params.delete("tab");
+    else params.set("tab", next);
+    const query = params.toString();
+    router.replace(query ? `/admin?${query}` : "/admin", { scroll: false });
+  }
 
   useEffect(() => {
     if (initialError) {
@@ -398,7 +432,7 @@ export function AdminDashboard({
                 {performer.display_name}
               </p>
               <h1 className="font-serif text-2xl leading-relaxed font-semibold tracking-[-0.02em]">
-                Stage queue
+                Stage
               </h1>
             </div>
           </div>
@@ -421,141 +455,203 @@ export function AdminDashboard({
           </div>
         </header>
 
-        <div className="mt-8">
-          <AdminOnboardingBanner performer={performer} siteUrl={siteUrl} />
-        </div>
-
-        <div className="mt-5">
-          <AdminPromptCards />
-        </div>
-
-        <section className="mt-8 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
-            <p className="text-xs font-bold tracking-[0.14em] text-[#A8A29E] uppercase">
-              Waiting
-            </p>
-            <p className="mt-2 font-serif text-4xl leading-none font-semibold">
-              {pendingCount}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
-            <p className="text-xs font-bold tracking-[0.14em] text-[#A8A29E] uppercase">
-              Live updates
-            </p>
-            <p
+        <nav
+          aria-label="Admin sections"
+          className="mt-6 flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-[#292524] p-1"
+        >
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => selectTab(item.id)}
               className={cn(
-                "mt-3 flex min-h-[44px] items-center gap-2 text-base font-bold",
-                connected ? "text-emerald-300" : "text-[#A8A29E]",
+                "inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold whitespace-nowrap transition",
+                tab === item.id
+                  ? "bg-[#FAFAF9] text-[#1C1917]"
+                  : "text-[#A8A29E] hover:text-[#FAFAF9]",
               )}
             >
-              <Radio size={18} className={connected ? "animate-pulse" : ""} />
-              {connected ? "Connected" : "Offline"}
-            </p>
-          </div>
-        </section>
-
-        {error && (
-          <div
-            role="alert"
-            className="mt-5 rounded-2xl border border-red-400/40 bg-red-500/15 p-4 text-sm font-semibold text-red-200"
-          >
-            {error}
-          </div>
-        )}
-
-        <section className="mt-8">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold tracking-[0.16em] text-amber-200/80 uppercase">
-                Active queue
-              </p>
-              <h2 className="font-serif text-xl leading-relaxed font-semibold">
-                Pending requests
-              </h2>
-            </div>
-            <span className="text-sm font-bold text-[#A8A29E]">
-              {activeQueue.length}
-            </span>
-          </div>
-
-          {activeQueue.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-[#292524] px-6 py-14 text-center">
-              <span className="mx-auto grid size-14 place-items-center rounded-full bg-white/10 text-[#A8A29E]">
-                <Music2 size={24} />
-              </span>
-              <h3 className="mt-4 font-serif text-xl leading-relaxed font-semibold">
-                Queue is clear
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">
-                Share /{performer.username} — new requests appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {activeQueue.map((item) => (
-                <ActiveRequestCard
-                  key={item.id}
-                  item={item}
-                  updating={updating}
-                  mounted={mounted}
-                  onUpdate={(id, status) => void updateStatus(id, status)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-8">
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#292524]">
-            <button
-              type="button"
-              aria-expanded={historyOpen}
-              onClick={() => setHistoryOpen((open) => !open)}
-              className="flex min-h-[56px] w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/5"
-            >
-              <div>
-                <p className="text-xs font-bold tracking-[0.16em] text-[#A8A29E] uppercase">
-                  Completed history
-                </p>
-                <p className="mt-1 font-serif text-lg leading-relaxed font-semibold text-[#D6D3D1]">
-                  Played & rejected
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-[#A8A29E]">
-                  {completedHistory.length}
-                </span>
-                <ChevronDown
-                  size={20}
+              <item.icon size={15} />
+              {item.label}
+              {item.id === "queue" && pendingCount > 0 ? (
+                <span
                   className={cn(
-                    "text-[#A8A29E] transition-transform duration-200",
-                    historyOpen && "rotate-180",
+                    "rounded-full px-1.5 text-[10px] font-bold",
+                    tab === item.id
+                      ? "bg-[#1C1917]/10 text-[#1C1917]"
+                      : "bg-amber-400/20 text-amber-200",
                   )}
-                />
-              </div>
+                >
+                  {pendingCount}
+                </span>
+              ) : null}
             </button>
+          ))}
+        </nav>
 
-            {historyOpen && (
-              <div className="border-t border-white/10 px-4 py-4">
-                {completedHistory.length === 0 ? (
-                  <p className="px-1 py-6 text-center text-sm leading-relaxed text-[#A8A29E]">
-                    No completed requests yet.
+        {tab === "queue" ? (
+          <>
+            <section className="mt-6 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
+                <p className="text-xs font-bold tracking-[0.14em] text-[#A8A29E] uppercase">
+                  Waiting
+                </p>
+                <p className="mt-2 font-serif text-4xl leading-none font-semibold">
+                  {pendingCount}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
+                <p className="text-xs font-bold tracking-[0.14em] text-[#A8A29E] uppercase">
+                  Live updates
+                </p>
+                <p
+                  className={cn(
+                    "mt-3 flex min-h-[44px] items-center gap-2 text-base font-bold",
+                    connected ? "text-emerald-300" : "text-[#A8A29E]",
+                  )}
+                >
+                  <Radio
+                    size={18}
+                    className={connected ? "animate-pulse" : ""}
+                  />
+                  {connected ? "Connected" : "Offline"}
+                </p>
+              </div>
+            </section>
+
+            {error && (
+              <div
+                role="alert"
+                className="mt-5 rounded-2xl border border-red-400/40 bg-red-500/15 p-4 text-sm font-semibold text-red-200"
+              >
+                {error}
+              </div>
+            )}
+
+            <section className="mt-8">
+              <div className="mb-4 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold tracking-[0.16em] text-amber-200/80 uppercase">
+                    Active queue
                   </p>
-                ) : (
-                  <div className="grid gap-3">
-                    {completedHistory.map((item) => (
-                      <HistoryRequestRow
-                        key={item.id}
-                        item={item}
-                        mounted={mounted}
-                      />
-                    ))}
+                  <h2 className="font-serif text-xl leading-relaxed font-semibold">
+                    Pending requests
+                  </h2>
+                </div>
+                <span className="text-sm font-bold text-[#A8A29E]">
+                  {activeQueue.length}
+                </span>
+              </div>
+
+              {activeQueue.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-[#292524] px-6 py-14 text-center">
+                  <span className="mx-auto grid size-14 place-items-center rounded-full bg-white/10 text-[#A8A29E]">
+                    <Music2 size={24} />
+                  </span>
+                  <h3 className="mt-4 font-serif text-xl leading-relaxed font-semibold">
+                    Queue is clear
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">
+                    Share /{performer.username}. New requests appear here.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => selectTab("live")}
+                    className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/15 px-4 text-sm font-semibold text-[#FAFAF9] transition hover:bg-white/10"
+                  >
+                    <QrCode size={15} />
+                    Get your QR & link
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {activeQueue.map((item) => (
+                    <ActiveRequestCard
+                      key={item.id}
+                      item={item}
+                      updating={updating}
+                      mounted={mounted}
+                      onUpdate={(id, status) => void updateStatus(id, status)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="mt-8">
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#292524]">
+                <button
+                  type="button"
+                  aria-expanded={historyOpen}
+                  onClick={() => setHistoryOpen((open) => !open)}
+                  className="flex min-h-[56px] w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/5"
+                >
+                  <div>
+                    <p className="text-xs font-bold tracking-[0.16em] text-[#A8A29E] uppercase">
+                      Completed history
+                    </p>
+                    <p className="mt-1 font-serif text-lg leading-relaxed font-semibold text-[#D6D3D1]">
+                      Played & rejected
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-[#A8A29E]">
+                      {completedHistory.length}
+                    </span>
+                    <ChevronDown
+                      size={20}
+                      className={cn(
+                        "text-[#A8A29E] transition-transform duration-200",
+                        historyOpen && "rotate-180",
+                      )}
+                    />
+                  </div>
+                </button>
+
+                {historyOpen && (
+                  <div className="border-t border-white/10 px-4 py-4">
+                    {completedHistory.length === 0 ? (
+                      <p className="px-1 py-6 text-center text-sm leading-relaxed text-[#A8A29E]">
+                        No completed requests yet.
+                      </p>
+                    ) : (
+                      <div className="grid gap-3">
+                        {completedHistory.map((item) => (
+                          <HistoryRequestRow
+                            key={item.id}
+                            item={item}
+                            mounted={mounted}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
+            </section>
+          </>
+        ) : null}
+
+        {tab === "live" ? (
+          <div className="mt-6">
+            <AdminOnboardingBanner performer={performer} siteUrl={siteUrl} />
           </div>
-        </section>
+        ) : null}
+
+        {tab === "songs" ? (
+          <div className="mt-6">
+            <AdminSongEditor performerId={performer.id} />
+          </div>
+        ) : null}
+
+        {tab === "tips" ? (
+          <div className="mt-6">
+            <AdminTipsForm
+              performer={performer}
+              onSaved={(next) => setPerformer(next)}
+            />
+          </div>
+        ) : null}
       </div>
     </main>
   );

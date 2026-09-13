@@ -6,6 +6,10 @@ create table if not exists public.performers (
   username text unique not null,
   display_name text not null,
   bio text,
+  tip_handle text,
+  interac_email text,
+  paypal_link text,
+  custom_tip_link text,
   user_id uuid references auth.users(id) on delete cascade unique,
   created_at timestamptz not null default now()
 );

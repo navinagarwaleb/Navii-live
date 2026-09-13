@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   sendPasswordReset,
-  signInWithEmail,
+  signInWithIdentifier,
 } from "@/lib/create-performer-account";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -23,7 +23,7 @@ export function LoginForm({
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "forgot">("signin");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -37,7 +37,7 @@ export function LoginForm({
     setSubmitting(true);
 
     try {
-      await signInWithEmail(email, password);
+      await signInWithIdentifier(identifier, password);
 
       const supabase = createSupabaseBrowserClient();
       if (supabase) {
@@ -75,12 +75,12 @@ export function LoginForm({
     setSubmitting(true);
 
     try {
-      if (!email.trim()) {
-        setError("Enter the email for your account.");
+      if (!identifier.trim()) {
+        setError("Enter your email or username.");
         setSubmitting(false);
         return;
       }
-      await sendPasswordReset(email);
+      await sendPasswordReset(identifier);
       setMessage("Check your email for a password reset link.");
       setSubmitting(false);
     } catch (resetError) {
@@ -102,19 +102,19 @@ export function LoginForm({
           <form onSubmit={(event) => void onSignIn(event)} className="grid gap-4">
             <div>
               <label
-                htmlFor="login-email"
+                htmlFor="login-identifier"
                 className="mb-2 block text-sm font-medium text-mist"
               >
-                Email
+                Email or username
               </label>
               <Input
-                id="login-email"
-                type="email"
-                autoComplete="email"
+                id="login-identifier"
+                type="text"
+                autoComplete="username"
                 required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@email.com"
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="you@email.com or your-username"
               />
             </div>
             <div>
@@ -181,23 +181,23 @@ export function LoginForm({
       ) : (
         <form onSubmit={(event) => void onForgot(event)} className="grid gap-4">
           <p className="text-sm leading-relaxed text-mist">
-            Enter your email and we’ll send a reset link.
+            Enter your email or username and we will send a reset link.
           </p>
           <div>
             <label
-              htmlFor="forgot-email"
+              htmlFor="forgot-identifier"
               className="mb-2 block text-sm font-medium text-mist"
             >
-              Email
+              Email or username
             </label>
             <Input
-              id="forgot-email"
-              type="email"
-              autoComplete="email"
+              id="forgot-identifier"
+              type="text"
+              autoComplete="username"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@email.com"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              placeholder="you@email.com or your-username"
             />
           </div>
           {error ? (

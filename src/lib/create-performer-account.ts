@@ -1,4 +1,5 @@
 import { RESERVED_USERNAMES } from "@/lib/reserved-usernames";
+import { DEFAULT_BIO } from "@/lib/performer-defaults";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 const USERNAME_RE = /^[a-z0-9-]{1,24}$/;
@@ -29,7 +30,11 @@ export async function isUsernameAvailable(username: string) {
 /** Start Google OAuth; returns to /auth/callback after consent. */
 export async function signInWithGoogle() {
   const supabase = createSupabaseBrowserClient();
-  if (!supabase) throw new Error("Supabase is not configured.");
+  if (!supabase) {
+    throw new Error(
+      "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local (local) or Vercel env (production), then restart/redeploy.",
+    );
+  }
 
   const origin = window.location.origin;
   const redirectTo = `${origin}/auth/callback`;
@@ -72,15 +77,105 @@ export async function signInWithEmail(email: string, password: string) {
   return data;
 }
 
-export async function sendPasswordReset(email: string) {
+/** Sign in with email or performer username + password. */
+export async function signInWithIdentifier(
+  identifier: string,
+  password: string,
+) {
+  const response = await fetch("/api/auth/resolve-login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier }),
+  });
+  const payload = (await response.json()) as {
+    email?: string;
+    error?: string;
+  };
+  if (!response.ok || !payload.email) {
+    throw new Error(payload.error ?? "Could not sign in.");
+  }
+  return signInWithEmail(payload.email, password);
+}
+
+export async function sendPasswordReset(identifier: string) {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase is not configured.");
 
+  const response = await fetch("/api/auth/resolve-login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier }),
+  });
+  const payload = (await response.json()) as {
+    email?: string;
+    error?: string;
+  };
+  if (!response.ok || !payload.email) {
+    throw new Error(payload.error ?? "Could not send reset email.");
+  }
+
   const origin = window.location.origin;
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+  const { error } = await supabase.auth.resetPasswordForEmail(payload.email, {
     redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/admin")}`,
   });
 
+  if (error) throw new Error(error.message);
+}
+
+const MIN_PASSWORD_LENGTH = 8;
+
+export function hasEmailPasswordIdentity(
+  identities: { provider: string }[] | null | undefined,
+) {
+  return Boolean(identities?.some((identity) => identity.provider === "email"));
+}
+
+/**
+ * Change password using standard re-auth: verify current password, then update.
+ * OAuth-only accounts can set a first password without a current one.
+ */
+export async function changePassword(input: {
+  currentPassword?: string;
+  newPassword: string;
+  confirmPassword: string;
+}) {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const newPassword = input.newPassword;
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+  }
+  if (newPassword !== input.confirmPassword) {
+    throw new Error("New passwords do not match.");
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user?.email) {
+    throw new Error("You need to sign in again to change your password.");
+  }
+
+  const needsCurrent = hasEmailPasswordIdentity(user.identities);
+  if (needsCurrent) {
+    const current = input.currentPassword?.trim() ?? "";
+    if (!current) throw new Error("Enter your current password.");
+    if (current === newPassword) {
+      throw new Error("New password must be different from your current password.");
+    }
+
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: current,
+    });
+    if (reauthError) {
+      throw new Error("Current password is incorrect.");
+    }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw new Error(error.message);
 }
 
@@ -125,6 +220,7 @@ export async function completePerformerSetup(input: {
     user_id: user.id,
     username,
     display_name: input.displayName.trim(),
+    bio: DEFAULT_BIO,
   });
 
   if (insertError) throw new Error(insertError.message);

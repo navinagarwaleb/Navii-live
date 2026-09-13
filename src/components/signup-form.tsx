@@ -96,7 +96,7 @@ export function SignupForm() {
           After you verify, you’ll continue to setup to claim your username.
         </p>
         <p className="mt-4 text-xs text-mist">
-          Keep this tab open — we’ll redirect you automatically once you’re
+          Keep this tab open. We’ll redirect you automatically once you’re
           signed in.
         </p>
       </div>

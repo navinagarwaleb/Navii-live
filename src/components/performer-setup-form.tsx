@@ -202,7 +202,7 @@ export function PerformerSetupForm() {
             : usernameStatus === "invalid"
               ? "Use lowercase letters, numbers, or hyphens (max 24)."
               : usernameStatus === "available"
-                ? `Available — your page will be /${normalizeUsername(username)}`
+                ? `Available. Your page will be /${normalizeUsername(username)}`
                 : `Your page will be /${username || "username"}`}
         </p>
       </div>

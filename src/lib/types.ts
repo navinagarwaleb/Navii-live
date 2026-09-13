@@ -5,6 +5,11 @@ export type Performer = {
   bio?: string | null;
   tip_handle?: string | null;
   interac_email?: string | null;
+  paypal_link?: string | null;
+  custom_tip_link?: string | null;
+  paypal_me_link?: string | null;
+  venmo_handle?: string | null;
+  cash_app_handle?: string | null;
   user_id?: string | null;
   created_at?: string;
 };

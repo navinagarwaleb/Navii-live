@@ -5,8 +5,8 @@ import {
   ArrowLeft,
   ArrowRight,
   AtSign,
-  ChevronDown,
   CircleCheckBig,
+  ExternalLink,
   Heart,
   Loader2,
   Music,
@@ -17,8 +17,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import { hasTipMethods, tipMethodLinks } from "@/lib/tips";
 import type { Performer, Song, SongRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { TipAmountGlyph, TipMethodIcon } from "@/components/tip-method-icons";
+
+const TIP_PRESETS = [
+  { amount: 5 as const, label: "$5" },
+  { amount: 10 as const, label: "$10" },
+  { amount: 20 as const, label: "$20" },
+] as const;
+const MIN_CUSTOM_TIP = 5;
 
 const TOTAL_STEPS = 5;
 
@@ -173,7 +182,7 @@ function StepIntro({
 }
 
 export function RequestWizard({ performer }: { performer: Performer }) {
-  const tipHandle = performer.tip_handle?.trim() || "";
+  const showTips = hasTipMethods(performer);
   const [supabase] = useState(() => createSupabaseBrowserClient());
   const [step, setStep] = useState(1);
   const [occasion, setOccasion] = useState("");
@@ -183,12 +192,42 @@ export function RequestWizard({ performer }: { performer: Performer }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [requesterName, setRequesterName] = useState("");
   const [dedication, setDedication] = useState("");
+  const [selectedTipAmount, setSelectedTipAmount] = useState<number | null>(
+    null,
+  );
   const [customTip, setCustomTip] = useState("");
+  const [customTipError, setCustomTipError] = useState("");
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] =
     useState<SongRequest | null>(null);
   const [error, setError] = useState("");
+
+  const tipLinks = tipMethodLinks(performer, selectedTipAmount);
+
+  function selectPresetTip(amount: number) {
+    setSelectedTipAmount(amount);
+    setCustomTip("");
+    setCustomTipError("");
+  }
+
+  function onCustomTipChange(value: string) {
+    setCustomTip(value);
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setCustomTipError("");
+      setSelectedTipAmount(null);
+      return;
+    }
+    const amount = Number(trimmed);
+    if (!Number.isFinite(amount) || amount < MIN_CUSTOM_TIP) {
+      setCustomTipError(`Enter $${MIN_CUSTOM_TIP} or more`);
+      setSelectedTipAmount(null);
+      return;
+    }
+    setCustomTipError("");
+    setSelectedTipAmount(amount);
+  }
 
   useEffect(() => {
     const label = STEP_LABELS[step] ?? "Request a song";
@@ -435,89 +474,115 @@ export function RequestWizard({ performer }: { performer: Performer }) {
           . Listen out for your moment.
         </p>
 
-        <Card className="mt-10 w-full rounded-2xl border border-border bg-field p-6 text-left shadow-none">
-          <div className="flex gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-surface text-[#B8862F]">
-              <Heart size={18} />
-            </span>
-            <div>
-              <h2 className="font-serif text-lg leading-[1.3] font-semibold text-deep-blue">
-                Feel generous?
-              </h2>
-              <p className="mt-1 text-sm leading-[1.5] text-mist">
-                Drop a tip to keep the music going.
+        {showTips ? (
+          <Card className="mt-10 w-full rounded-2xl border border-border bg-field p-6 text-left shadow-none">
+            <div className="flex gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-surface text-[#B8862F]">
+                <Heart size={18} />
+              </span>
+              <div>
+                <h2 className="font-serif text-lg leading-[1.3] font-semibold text-deep-blue">
+                  Feel generous?
+                </h2>
+                <p className="mt-1 text-sm leading-[1.5] text-mist">
+                  Drop a tip to support the artist.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-stretch gap-2">
+              {TIP_PRESETS.map((tip) => {
+                const selected =
+                  selectedTipAmount === tip.amount && customTip.trim() === "";
+                return (
+                  <button
+                    key={tip.amount}
+                    type="button"
+                    onClick={() => selectPresetTip(tip.amount)}
+                    className={cn(
+                      "inline-flex min-h-[56px] min-w-[64px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl border px-2 text-sm font-semibold transition active:scale-[0.97] sm:flex-none",
+                      selected
+                        ? "border-[#E4C29B] bg-[#F3E9DF] text-deep-blue"
+                        : "border-border bg-surface text-ink hover:border-line-strong hover:bg-selected",
+                    )}
+                  >
+                    <TipAmountGlyph
+                      amount={tip.amount}
+                      className="text-[#B8862F]"
+                    />
+                    {tip.label}
+                  </button>
+                );
+              })}
+              <div className="relative min-w-[96px] flex-[1.4] self-center">
+                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm font-semibold text-mist">
+                  $
+                </span>
+                <Input
+                  type="number"
+                  min={MIN_CUSTOM_TIP}
+                  step="1"
+                  inputMode="decimal"
+                  placeholder="Custom"
+                  value={customTip}
+                  onChange={(event) => onCustomTipChange(event.target.value)}
+                  aria-invalid={Boolean(customTipError)}
+                  className="min-h-[56px] pl-7"
+                />
+              </div>
+            </div>
+            {customTipError ? (
+              <p role="alert" className="mt-2 text-xs font-medium text-red-600">
+                {customTipError}
               </p>
-            </div>
-          </div>
+            ) : null}
 
-          <div className="mt-5 grid grid-cols-3 gap-2.5">
-            {[
-              { amount: 5, label: "$5", emoji: "☕" },
-              { amount: 10, label: "$10", emoji: "🍺" },
-              { amount: 20, label: "$20", emoji: "🎸" },
-            ].map((tip) => (
-              <a
-                key={tip.amount}
-                href={
-                  tipHandle
-                    ? tipHandle.startsWith("http")
-                      ? `${tipHandle}${tipHandle.includes("?") ? "&" : "?"}amount=${tip.amount}`
-                      : `https://www.buymeacoffee.com/${tipHandle}?amount=${tip.amount}`
-                    : `https://www.buymeacoffee.com/${performer.username}?amount=${tip.amount}`
-                }
-                target="_blank"
-                rel="noreferrer"
-                className="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-2xl border border-border bg-surface text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-selected active:scale-[0.97]"
-              >
-                <span className="text-lg leading-none">{tip.emoji}</span>
-                {tip.label}
-              </a>
-            ))}
-          </div>
+            {selectedTipAmount != null ? (
+              <div className="mt-4 grid gap-2">
+                <p className="text-xs font-medium text-mist">
+                  Send ${selectedTipAmount} with
+                </p>
+                <div className="grid gap-2">
+                  {tipLinks.map((method) => (
+                    <a
+                      key={method.id}
+                      href={method.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-[52px] items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-3 text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-selected active:scale-[0.98]"
+                    >
+                      <span className="inline-flex items-center gap-3">
+                        <TipMethodIcon id={method.id} />
+                        {method.label}
+                      </span>
+                      <ExternalLink size={15} className="text-mist" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
-          <details className="group mt-4 rounded-2xl border border-border bg-surface px-4 py-3">
-            <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
-              Custom amount
-              <ChevronDown
-                size={16}
-                className="text-mist transition group-open:rotate-180"
-              />
-            </summary>
-            <div className="mt-3 flex gap-2">
-              <Input
-                type="number"
-                min={1}
-                inputMode="decimal"
-                placeholder="Amount"
-                value={customTip}
-                onChange={(event) => setCustomTip(event.target.value)}
-                className="min-h-[44px]"
-              />
-              <a
-                href={
-                  customTip && Number(customTip) > 0
-                    ? `https://www.buymeacoffee.com/${performer.username}?amount=${encodeURIComponent(customTip)}`
-                    : `https://www.buymeacoffee.com/${performer.username}`
-                }
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-[44px] min-w-[72px] items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-surface"
-              >
-                Tip
-              </a>
-            </div>
-          </details>
-
+            <a
+              href={`https://instagram.com/${performer.username}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 flex min-h-[44px] items-center justify-center gap-2 text-sm font-semibold text-mist transition hover:text-deep-blue"
+            >
+              <AtSign size={15} />
+              Follow @{performer.username}
+            </a>
+          </Card>
+        ) : (
           <a
             href={`https://instagram.com/${performer.username}`}
             target="_blank"
             rel="noreferrer"
-            className="mt-4 flex min-h-[44px] items-center justify-center gap-2 text-sm font-semibold text-mist transition hover:text-deep-blue"
+            className="mt-10 flex min-h-[44px] items-center justify-center gap-2 text-sm font-semibold text-mist transition hover:text-deep-blue"
           >
             <AtSign size={15} />
             Follow @{performer.username}
           </a>
-        </Card>
+        )}
 
         <button
           type="button"
@@ -734,7 +799,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
             <StepIntro
               eyebrow="One last touch"
               title="Add a dedication?"
-              description="Optional — a name or a quick message for the mic."
+              description="Optional: a name or a quick message for the mic."
             />
             <Card className="mt-6 bg-surface p-6 shadow-none">
               <label

@@ -1,13 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Download,
   ExternalLink,
-  Music2,
-  Settings,
-  Wallet,
 } from "lucide-react";
 import type { Performer } from "@/lib/types";
 
@@ -85,56 +82,6 @@ export function AdminOnboardingBanner({
           </div>
         </div>
       </div>
-    </section>
-  );
-}
-
-export function AdminPromptCards() {
-  const cards = useMemo(
-    () => [
-      {
-        href: "/admin/songs",
-        title: "Add your songs",
-        body: "Build the setlist guests can request from.",
-        icon: Music2,
-      },
-      {
-        href: "/admin/settings",
-        title: "Set up tips",
-        body: "Add a tip handle or Interac email when you’re ready.",
-        icon: Wallet,
-      },
-    ],
-    [],
-  );
-
-  return (
-    <section className="grid gap-3 sm:grid-cols-2">
-      {cards.map((card) => (
-        <Link
-          key={card.href}
-          href={card.href}
-          className="rounded-2xl border border-white/10 bg-[#292524] p-5 transition hover:border-white/20 hover:bg-[#322f2c]"
-        >
-          <span className="grid size-10 place-items-center rounded-xl bg-white/10 text-[#F2B76E]">
-            <card.icon size={18} />
-          </span>
-          <h3 className="mt-4 font-serif text-lg font-semibold text-[#FAFAF9]">
-            {card.title}
-          </h3>
-          <p className="mt-1 text-sm leading-relaxed text-[#A8A29E]">{card.body}</p>
-          <p className="mt-3 text-xs font-bold tracking-[0.08em] text-[#A8A29E] uppercase">
-            Optional
-          </p>
-        </Link>
-      ))}
-      <Link
-        href="/admin/settings"
-        className="flex min-h-[44px] items-center gap-2 rounded-2xl border border-dashed border-white/15 px-5 text-sm font-semibold text-[#A8A29E] transition hover:border-white/25 hover:text-[#FAFAF9] sm:col-span-2"
-      >
-        <Settings size={16} />
-        Profile settings
-      </Link>
     </section>
   );
 }

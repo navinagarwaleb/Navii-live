@@ -1,13 +1,20 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { AdminDashboard } from "@/components/admin-dashboard";
+import { PERFORMER_SELECT_SAFE } from "@/lib/performer-select";
 import {
   createSupabaseAdminClient,
   createSupabaseServerClient,
 } from "@/lib/supabase-server";
 import type { Performer, SongRequest } from "@/lib/types";
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
     redirect("/login?error=config");
@@ -23,14 +30,15 @@ export default async function AdminPage() {
 
   const { data: performer, error: performerError } = await supabase
     .from("performers")
-    .select(
-      "id,username,display_name,bio,tip_handle,interac_email,user_id,created_at",
-    )
+    .select(PERFORMER_SELECT_SAFE)
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (performerError) {
-    console.error("Unable to load performer for admin:", performerError);
+    console.error(
+      "Unable to load performer for admin:",
+      performerError.message ?? JSON.stringify(performerError),
+    );
   }
 
   if (!performer) {
@@ -65,12 +73,26 @@ export default async function AdminPage() {
     process.env.NEXT_PUBLIC_SITE_URL ||
     (host ? `${proto}://${host}` : "http://localhost:3000");
 
+  const tab =
+    params.tab === "live" || params.tab === "songs" || params.tab === "tips"
+      ? params.tab
+      : "queue";
+
   return (
-    <AdminDashboard
-      performer={performer as Performer}
-      siteUrl={siteUrl}
-      initialRequests={initialRequests}
-      initialError={initialError}
-    />
+    <Suspense
+      fallback={
+        <main className="grid min-h-dvh place-items-center bg-[#1C1917] text-[#A8A29E]">
+          Loading…
+        </main>
+      }
+    >
+      <AdminDashboard
+        performer={performer as Performer}
+        siteUrl={siteUrl}
+        initialRequests={initialRequests}
+        initialError={initialError}
+        initialTab={tab}
+      />
+    </Suspense>
   );
 }

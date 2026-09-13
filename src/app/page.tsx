@@ -25,7 +25,7 @@ export default function Home() {
 
         <p className="animate-rise rise-3 mt-4 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
           Get a free page where your audience can request songs and leave
-          dedications — live, from their phones.
+          dedications, live from their phones.
         </p>
 
         <LandingCtas />

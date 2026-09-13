@@ -31,7 +31,7 @@ export default async function LoginPage({
           Welcome back
         </h1>
         <p className="mt-3 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
-          Sign in with Google or email to manage your queue and page.
+          Sign in with Google, or use your email / username and password.
         </p>
         <LoginForm initialError={authError} />
       </section>
