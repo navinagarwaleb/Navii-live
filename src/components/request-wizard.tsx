@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import confetti from "canvas-confetti";
 import {
   ArrowLeft,
   ArrowRight,
@@ -24,6 +23,14 @@ import { cn } from "@/lib/utils";
 
 const TOTAL_STEPS = 5;
 
+const STEP_TITLES: Record<number, string> = {
+  1: "What’s the occasion? · Navii Live",
+  2: "What song are we playing? · Navii Live",
+  3: "Who is this from? · Navii Live",
+  4: "Add a dedication? · Navii Live",
+  5: "Your request is in! · Navii Live",
+};
+
 /** Preferred chip order when present; any other Supabase tags still appear after. */
 const PREFERRED_TAG_ORDER = [
   "Sing-Alongs",
@@ -37,9 +44,9 @@ const PREFERRED_TAG_ORDER = [
 
 const occasions = [
   { emoji: "🎸", label: "Just Because" },
-  { emoji: "🎉", label: "Shoutout / Birthday" },
-  { emoji: "🍷", label: "Table Dedication / Date Night" },
-  { emoji: "🍻", label: "Round of Cheers / Table Anthem" },
+  { emoji: "🎂", label: "Birthday" },
+  { emoji: "🍷", label: "Date Night" },
+  { emoji: "💞", label: "Anniversary" },
   { emoji: "🔥", label: "Table Hype / Party Starter" },
   { emoji: "🌙", label: "Late Night Request" },
 ];
@@ -112,21 +119,25 @@ function SelectionTile({
   onClick,
   children,
   className,
+  disabled,
 }: {
   selected: boolean;
   onClick: () => void;
   children: React.ReactNode;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
+      disabled={disabled}
       onClick={onClick}
       className={cn(
-        "relative flex min-h-[96px] touch-manipulation flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border-[1.5px] border-border bg-field px-2 py-3.5 text-center shadow-xs transition-all outline-none",
+        "relative flex min-h-[92px] touch-manipulation flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border-[1.5px] border-border bg-field px-2 py-3.5 text-center shadow-xs transition-all outline-none",
         "hover:border-line-strong hover:bg-selected focus-visible:ring-4 focus-visible:ring-accent/30 active:scale-[0.97]",
         selected && "border-line-strong bg-selected shadow-none",
+        disabled && "pointer-events-none opacity-60",
         className,
       )}
     >
@@ -165,17 +176,24 @@ function StepIntro({
 export function RequestWizard() {
   const [supabase] = useState(() => createSupabaseBrowserClient());
   const [step, setStep] = useState(1);
+  const [stepVisible, setStepVisible] = useState(true);
   const [occasion, setOccasion] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
   const [song, setSong] = useState<Song | null>(null);
   const [genreFilter, setGenreFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [requesterName, setRequesterName] = useState("");
   const [dedication, setDedication] = useState("");
+  const [skipDedication, setSkipDedication] = useState(false);
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] =
     useState<SongRequest | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    document.title = STEP_TITLES[step] ?? "Navii Live";
+  }, [step]);
 
   useEffect(() => {
     let active = true;
@@ -229,40 +247,72 @@ export function RequestWizard() {
   useEffect(() => {
     if (step !== 5) return;
 
-    const end = Date.now() + 1800;
-    const colors = ["#0D1B2E", "#F2B76E", "#FFC89B", "#F7F4F0"];
-    const timer = window.setInterval(() => {
-      if (Date.now() > end) {
-        window.clearInterval(timer);
-        return;
-      }
-      void confetti({
-        particleCount: 4,
-        angle: 60,
-        spread: 65,
-        origin: { x: 0 },
-        colors,
-      });
-      void confetti({
-        particleCount: 4,
-        angle: 120,
-        spread: 65,
-        origin: { x: 1 },
-        colors,
-      });
-    }, 120);
+    let cancelled = false;
+    let timer = 0;
 
-    return () => window.clearInterval(timer);
+    void import("canvas-confetti").then(({ default: confetti }) => {
+      if (cancelled) return;
+      const end = Date.now() + 1800;
+      const colors = ["#0D1B2E", "#F2B76E", "#FFC89B", "#F7F4F0"];
+      timer = window.setInterval(() => {
+        if (Date.now() > end) {
+          window.clearInterval(timer);
+          return;
+        }
+        void confetti({
+          particleCount: 4,
+          angle: 60,
+          spread: 65,
+          origin: { x: 0 },
+          colors,
+        });
+        void confetti({
+          particleCount: 4,
+          angle: 120,
+          spread: 65,
+          origin: { x: 1 },
+          colors,
+        });
+      }, 120);
+    });
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [step]);
 
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: songs.length };
+    for (const item of songs) {
+      for (const tag of item.tags ?? []) {
+        const key = tag.trim();
+        if (!key) continue;
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [songs]);
+
   const filteredSongs = useMemo(() => {
-    if (genreFilter === "All") return songs;
-    return songs.filter((item) =>
-      (item.tags ?? []).some(
-        (tag) => tag.toLowerCase() === genreFilter.toLowerCase(),
-      ),
-    );
-  }, [genreFilter, songs]);
+    const query = searchQuery.trim().toLowerCase();
+
+    return songs.filter((item) => {
+      const matchesGenre =
+        genreFilter === "All" ||
+        (item.tags ?? []).some(
+          (tag) => tag.toLowerCase() === genreFilter.toLowerCase(),
+        );
+
+      if (!matchesGenre) return false;
+      if (!query) return true;
+
+      return (
+        item.title.toLowerCase().includes(query) ||
+        item.artist.toLowerCase().includes(query)
+      );
+    });
+  }, [genreFilter, searchQuery, songs]);
 
   const availableFilters = useMemo(() => {
     const present = new Set(
@@ -273,23 +323,47 @@ export function RequestWizard() {
 
     const preferred = PREFERRED_TAG_ORDER.filter((tag) => present.has(tag));
     const extras = [...present]
-      .filter((tag) => !PREFERRED_TAG_ORDER.includes(tag as (typeof PREFERRED_TAG_ORDER)[number]))
+      .filter(
+        (tag) =>
+          !PREFERRED_TAG_ORDER.includes(
+            tag as (typeof PREFERRED_TAG_ORDER)[number],
+          ),
+      )
       .sort((a, b) => a.localeCompare(b));
 
     return ["All", ...preferred, ...extras];
   }, [songs]);
 
   const canContinue =
-    (step === 1 && occasion) ||
-    (step === 2 && song) ||
-    (step === 3 && requesterName.trim());
+    (step === 1 && Boolean(occasion)) ||
+    (step === 2 && Boolean(song)) ||
+    (step === 3 && Boolean(requesterName.trim()));
 
-  async function submitRequest(dedicationOverride?: string) {
+  const continueHint =
+    step === 1 && !occasion
+      ? "Pick a vibe to continue"
+      : step === 2 && !song
+        ? "Pick a song to continue"
+        : step === 3 && !requesterName.trim()
+          ? "Add your name or table to continue"
+          : undefined;
+
+  function goToStep(next: number) {
+    setStepVisible(false);
+    window.setTimeout(() => {
+      setStep(next);
+      setStepVisible(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 160);
+  }
+
+  async function submitRequest() {
     if (!song || !occasion || !requesterName.trim()) return;
 
     setSubmitting(true);
     setError("");
-    const dedicationValue = dedicationOverride ?? dedication;
+    const dedicationValue = skipDedication ? "" : dedication;
+
     if (supabase) {
       const { data: insertedRequest, error: submitError } = await supabase
         .from("requests")
@@ -323,12 +397,12 @@ export function RequestWizard() {
     }
 
     setSubmitting(false);
-    setStep(5);
+    goToStep(5);
   }
 
   if (step === 5) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-col flex-col items-center justify-center px-6 py-10 text-center">
+      <main className="mx-auto flex min-h-dvh w-full max-w-col flex-col items-center justify-center px-6 py-10 pb-16 text-center">
         <div className="grid size-16 place-items-center rounded-full bg-surface text-[#B8862F] shadow-soft">
           <CircleCheckBig size={30} />
         </div>
@@ -397,11 +471,16 @@ export function RequestWizard() {
         </div>
         <div
           className="grid grid-cols-5 gap-1.5 pb-3.5"
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={TOTAL_STEPS}
+          aria-valuenow={step}
           aria-label={`Step ${step} of ${TOTAL_STEPS}`}
         >
           {Array.from({ length: TOTAL_STEPS }, (_, index) => (
             <span
               key={index}
+              aria-hidden="true"
               className={cn(
                 "h-1 rounded-full transition-colors duration-300",
                 index < step ? "bg-accent" : "bg-border",
@@ -411,15 +490,22 @@ export function RequestWizard() {
         </div>
       </header>
 
-      <section className="mt-[18px] px-[18px] sm:px-5">
+      <section
+        className={cn(
+          "mt-[18px] px-[18px] transition-all duration-200 ease-out sm:px-5",
+          stepVisible
+            ? "translate-y-0 opacity-100"
+            : "translate-y-2 opacity-0",
+        )}
+      >
         {step === 1 && (
           <>
             <StepIntro
               eyebrow="Set the mood"
-              title="What’s the vibe?"
-              description="Pick the social intent that fits your moment."
+              title="What’s the occasion?"
+              description="Pick the moment that fits right now."
             />
-            <div className="mt-4 grid grid-cols-3 gap-2.5">
+            <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {occasions.map((item) => (
                 <SelectionTile
                   key={item.label}
@@ -440,7 +526,7 @@ export function RequestWizard() {
           <>
             <StepIntro
               eyebrow="Choose your tune"
-              title="Which song should Navii play?"
+              title="What song are we playing?"
             />
 
             <div className="mt-4 grid gap-2">
@@ -448,7 +534,10 @@ export function RequestWizard() {
                 <p className="min-w-0 text-[clamp(0.98rem,4.1vw,1.1rem)] font-semibold leading-[1.35] text-deep-blue">
                   Which sound like you?
                 </p>
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(255,200,155,0.55)] bg-surface px-3.5 py-[7px] text-[0.85rem] leading-none font-semibold whitespace-nowrap text-[#B8862F]">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex shrink-0 cursor-default select-none items-center gap-1.5 rounded-full border border-[rgba(255,200,155,0.55)] bg-surface px-3.5 py-[7px] text-[0.85rem] leading-none font-semibold whitespace-nowrap text-[#B8862F] opacity-60"
+                >
                   <Sparkles size={12} strokeWidth={2} className="text-accent" />
                   More ideas
                 </span>
@@ -457,28 +546,45 @@ export function RequestWizard() {
               <div className="flex flex-wrap gap-2">
                 {availableFilters.map((filter) => {
                   const selected = genreFilter === filter;
+                  const count = tagCounts[filter] ?? 0;
                   return (
                     <button
                       key={filter}
                       type="button"
                       onClick={() => setGenreFilter(filter)}
                       className={cn(
-                        "rounded-full border border-border bg-field px-[18px] py-2 text-[13px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
+                        "min-h-[40px] rounded-full border border-border bg-field px-4 py-2 text-[13px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
                         !selected && "hover:border-border hover:bg-field",
                         selected &&
                           "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
                       )}
                     >
                       {filter}
+                      <span className="ml-1.5 text-muted">({count})</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2.5">
+            <input
+              className="mt-4 min-h-[48px] w-full rounded-full border border-border bg-field px-5 text-sm text-ink shadow-xs outline-none transition placeholder:text-muted focus:border-line-strong focus:ring-4 focus:ring-accent/25"
+              placeholder="Search by song or artist..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="Search by song or artist"
+            />
+
+            <p className="mt-3 text-sm text-mist">
+              {filteredSongs.length} song
+              {filteredSongs.length === 1 ? "" : "s"}
+              {genreFilter !== "All" ? ` · ${genreFilter}` : ""}
+              {searchQuery.trim() ? ` · “${searchQuery.trim()}”` : ""}
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {loadingSongs ? (
-                <div className="col-span-3 grid min-h-[44px] place-items-center py-16 text-mist">
+                <div className="col-span-2 grid min-h-[44px] place-items-center py-16 text-mist sm:col-span-3">
                   <Loader2 className="animate-spin" />
                 </div>
               ) : (
@@ -487,7 +593,7 @@ export function RequestWizard() {
                     key={item.id}
                     selected={song?.id === item.id}
                     onClick={() => setSong(item)}
-                    className="min-h-[88px] items-center justify-center gap-1 px-2 py-2.5 text-center"
+                    className="min-h-[92px] items-center justify-center gap-1 px-2 py-2.5 text-center"
                   >
                     <span className="text-mist">
                       <Music size={12} strokeWidth={1.75} />
@@ -496,7 +602,7 @@ export function RequestWizard() {
                       <span className="line-clamp-2 block text-[12px] leading-[1.2] font-medium text-ink">
                         {item.title}
                       </span>
-                      <span className="mt-0.5 line-clamp-1 block text-[11px] leading-[1.25] text-muted">
+                      <span className="mt-1 line-clamp-1 block text-[12px] leading-[1.3] font-medium text-mist">
                         {item.artist}
                       </span>
                     </span>
@@ -504,8 +610,8 @@ export function RequestWizard() {
                 ))
               )}
               {!loadingSongs && filteredSongs.length === 0 && (
-                <p className="col-span-3 py-12 text-center text-[0.95rem] leading-[1.5] text-mist">
-                  No songs match this genre yet.
+                <p className="col-span-2 py-12 text-center text-[0.95rem] leading-[1.5] text-mist sm:col-span-3">
+                  No songs match this search yet.
                 </p>
               )}
             </div>
@@ -516,15 +622,15 @@ export function RequestWizard() {
           <>
             <StepIntro
               eyebrow="Make it personal"
-              title="Who’s making the request?"
-              description="This helps Navii give you a proper shout-out."
+              title="Who is this from?"
+              description="Your name or table number so I know who to shout out."
             />
             <Card className="mt-6 bg-surface p-6 shadow-none">
               <label
                 htmlFor="requester-name"
                 className="mb-3 block text-sm font-medium text-mist"
               >
-                Your name
+                Your name or table
               </label>
               <Input
                 id="requester-name"
@@ -533,7 +639,7 @@ export function RequestWizard() {
                 maxLength={60}
                 value={requesterName}
                 onChange={(event) => setRequesterName(event.target.value)}
-                placeholder="e.g. Emma"
+                placeholder="e.g. Emma · Table 4"
               />
             </Card>
           </>
@@ -543,8 +649,8 @@ export function RequestWizard() {
           <>
             <StepIntro
               eyebrow="One last touch"
-              title="Who is this dedicated to?"
-              description="Add their name or a short message for Navii to share."
+              title="Add a dedication?"
+              description="Optional — a name or a quick message for the mic."
             />
             <Card className="mt-6 bg-surface p-6 shadow-none">
               <label
@@ -558,22 +664,28 @@ export function RequestWizard() {
                 autoFocus
                 maxLength={120}
                 value={dedication}
-                onChange={(event) => setDedication(event.target.value)}
+                onChange={(event) => {
+                  setDedication(event.target.value);
+                  setSkipDedication(false);
+                }}
                 placeholder="e.g. My wonderful parents"
               />
             </Card>
 
             <SelectionTile
-              selected={false}
+              selected={skipDedication}
               onClick={() => {
-                if (submitting) return;
                 setDedication("");
-                void submitRequest("");
+                setSkipDedication(true);
               }}
-              className="mt-3 min-h-[88px] w-full gap-1 px-4 py-4"
+              className="mt-3 min-h-[92px] w-full gap-1 px-4 py-4"
             >
               <span className="grid size-10 place-items-center rounded-full bg-[rgba(255,200,155,0.28)] text-deep-blue">
-                <SkipForward size={18} strokeWidth={1.75} className="text-[#B8862F]" />
+                <SkipForward
+                  size={18}
+                  strokeWidth={1.75}
+                  className="text-[#B8862F]"
+                />
               </span>
               <span className="text-[14px] leading-[1.2] font-medium text-ink">
                 Skip dedication
@@ -586,7 +698,7 @@ export function RequestWizard() {
             {error && (
               <p
                 role="alert"
-                className="mt-4 text-sm font-semibold text-[#9D5440]"
+                className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
               >
                 {error}
               </p>
@@ -596,27 +708,33 @@ export function RequestWizard() {
       </section>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-[max(20px,env(safe-area-inset-bottom))] z-20 px-[18px]">
-        <div className="pointer-events-auto mx-auto grid w-full max-w-[496px] grid-cols-[auto_1fr] gap-2.5 rounded-[20px] bg-paper p-3.5 shadow-dock">
-          <Button
-            type="button"
-            size="lg"
-            variant="secondary"
-            className="h-[52px] min-h-[52px] px-5 text-base"
-            disabled={submitting}
-            onClick={() =>
-              step === 1 ? window.history.back() : setStep(step - 1)
-            }
-          >
-            <ArrowLeft size={16} />
-            Back
-          </Button>
+        <div
+          className={cn(
+            "pointer-events-auto mx-auto grid w-full max-w-[496px] gap-2.5 rounded-[20px] bg-paper p-3.5 shadow-dock",
+            step === 1 ? "grid-cols-1" : "grid-cols-[auto_1fr]",
+          )}
+        >
+          {step > 1 && (
+            <Button
+              type="button"
+              size="lg"
+              variant="secondary"
+              className="h-[52px] min-h-[52px] px-5 text-base"
+              disabled={submitting}
+              onClick={() => goToStep(step - 1)}
+            >
+              <ArrowLeft size={16} />
+              Back
+            </Button>
+          )}
           {step < 4 ? (
             <Button
               type="button"
               size="lg"
               className="h-[52px] min-h-[52px] w-full"
               disabled={!canContinue}
-              onClick={() => setStep(step + 1)}
+              title={continueHint}
+              onClick={() => goToStep(step + 1)}
             >
               Continue
               <ArrowRight size={16} />
@@ -635,6 +753,11 @@ export function RequestWizard() {
             </Button>
           )}
         </div>
+        {step < 4 && !canContinue && continueHint ? (
+          <p className="pointer-events-none mx-auto mt-2 max-w-[496px] text-center text-xs text-mist">
+            {continueHint}
+          </p>
+        ) : null}
       </div>
     </main>
   );

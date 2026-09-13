@@ -16,7 +16,7 @@ const config: Config = {
         ink: "#0D1B2E",
         "deep-blue": "#1E2F4D",
         muted: "#8D95A1",
-        mist: "#6D87A6",
+        mist: "#4A6A8A",
         accent: "#F2B76E",
         "accent-soft": "#FFC89B",
         border: "#E7E3DE",

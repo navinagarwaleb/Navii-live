@@ -17,11 +17,15 @@ import { cn } from "@/lib/utils";
 
 const occasionEmoji: Record<string, string> = {
   "Just Because": "🎸",
+  Birthday: "🎂",
+  "Date Night": "🍷",
+  Anniversary: "💞",
+  "Table Hype / Party Starter": "🔥",
+  "Late Night Request": "🌙",
+  // Legacy labels still shown for older requests
   "Shoutout / Birthday": "🎉",
   "Table Dedication / Date Night": "🍷",
   "Round of Cheers / Table Anthem": "🍻",
-  "Table Hype / Party Starter": "🔥",
-  "Late Night Request": "🌙",
 };
 
 const statusStyles: Record<RequestStatus, string> = {
