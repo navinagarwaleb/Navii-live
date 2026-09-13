@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- VIEWPORT — three directives, and the two that are NOT here are the point.
+         · width=device-width + initial-scale=1: the layout viewport is the device's own width at
+           1×. Standard, and the only reason the ad landing measures right.
+         · viewport-fit=cover: paint under the notch/home indicator; env(safe-area-inset-*) is what
+           keeps content out from under them. Required by the full-bleed watercolour grounds.
+         · NO maximum-scale, NO user-scalable=no — deliberately. Those are the usual reflex when a
+           "the page came back zoomed" bug is reported, and they are the wrong trade here:
+           iOS (10+) IGNORES user-scalable=no for a user's own pinch, so on the very platform that
+           reports these bugs the directive buys nothing, while Android Chrome DOES honour both and
+           would lose pinch-zoom entirely — an accessibility regression for half of paid traffic.
+           maximum-scale=1 does still suppress iOS's automatic zoom-to-focused-control, but that
+           class of bug is fixed at the source instead: the 16px floor on every focusable form
+           control in styles.css (iOS only auto-zooms controls under 16px).
+         So zoom stays the buyer's to use, and the app's job is to remain USABLE while zoomed:
+         every fixed bottom bar sits on --visual-viewport-bottom (src/visualViewportInsets.ts),
+         and no full-height screen may become the document's only scroller.
+         Changing this line is pinned by src/index.contract.test.ts — read it first. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- The resume_token rides in ?t= on shared links; never leak it via the Referer header. -->
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light" />
+    <!-- CRITICAL CANVAS COLOUR — inline, and first, on purpose. iOS 26 samples the page's
+         background-COLOR at (or very near) FIRST PAINT to tint its status bar and toolbar, and the
+         bundle stylesheet has not applied by then: in dev Vite injects it from JS, and even in prod
+         the <link> below resolves after the first frame. With no colour yet, Safari falls back to
+         white and the chrome comes up as a pale gray band that never re-tints. Stating --paper here
+         gives the sampler a real answer immediately; the bundle's `var(--frame)` rules on html/body
+         (styles.css) sit later in the cascade and take over the moment they load, so a route's own
+         setFrame() tint still wins. Also kills the white first-paint flash generally.
+         Must stay ABOVE every <link>/<script> in this head. -->
+    <style>
+      html,
+      body {
+        background: #f7f4f0;
+      }
+    </style>
+    <!-- iOS Safari tints its status bar + the collapsing bottom toolbar by SAMPLING the page's top
+         edge — and it bails to a default gray whenever that edge is an image or a gradient, which is
+         every designed route here. So we state the tint instead of hoping it samples right. #F7F4F0
+         (--paper) is the byte-identical top row of every watercolour asset, so the chrome and the
+         canvas read as one surface. Routes whose top edge is a DIFFERENT flat colour override this
+         at mount via setFrame() (src/frame.ts) — that helper moves this tag and the html canvas
+         together so the two can never drift apart. -->
+    <meta name="theme-color" content="#F7F4F0" />
+    <title>
+      little hum — a song made from your story
+    </title>
+    <meta name="description" content="Turn your story into a custom song — a gift they keep, download, and share." />
+    <meta property="og:title" content="little hum — a song made from your story" />
+    <meta property="og:description" content="Turn your story into a custom song — a gift they keep, download, and share." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://app.yourlittlehum.com/" />
+    <!-- og:image / twitter:image MUST be absolute — relative paths don't resolve when a scraper
+         (FB/Twitter/iMessage) fetches the card off-origin, so the preview shipped with no image. -->
+    <meta property="og:image" content="https://app.yourlittlehum.com/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="little hum — a song made from your story" />
+    <meta name="twitter:description" content="Turn your story into a custom song — a gift they keep, download, and share." />
+    <meta name="twitter:image" content="https://app.yourlittlehum.com/og.jpg" />
+    <!-- littlehum app icon — navy ground, gold hum-line + star (public/favicon.png). -->
+    <link rel="icon" href="https://assets.yourlittlehum.com/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="https://assets.yourlittlehum.com/favicon.png" />
+    <!-- First quiz ornament is discovered before the SPA mounts; Quiz preloads the remaining
+         per-step washes so every later transition can cross-fade without an empty frame. -->
+    <link rel="preload" as="image" href="https://assets.yourlittlehum.com/quiz/step1.png" fetchpriority="high" />
+    <!-- Brand type (littlehum DS): Fraunces (display/headline) · DM Sans (body + UI).
+         display=swap so the system fallback paints first; the stylesheet itself loads NON-blocking
+         (media=print → all onload) so the Google Fonts request never delays LCP on the ad landing.
+         The <noscript> keeps the brand type for JS-disabled clients. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&amp;family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..700&amp;family=EB+Garamond:ital,wght@0,400..600;1,400&amp;display=swap" media="print" onload="this.media=&#39;all&#39;" />
+    <noscript>
+      &lt;link
+        rel=&#34;stylesheet&#34;
+        href=&#34;https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&amp;family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..700&amp;family=EB+Garamond:ital,wght@0,400..600;1,400&amp;display=swap&#34;
+      /&gt;
+    </noscript>
+    <script type="module" crossorigin="" src="https://assets.yourlittlehum.com/assets/v2/index-BinDnRjA.js">
+    </script>
+    <link rel="stylesheet" crossorigin="" href="https://assets.yourlittlehum.com/assets/v2/style-BnX3cGMx.css" />
+  </head>
+  <body>
+    <!-- Single SPA mount. main.tsx reads window.location.pathname to pick Landing vs CreateFlow. -->
+    <div id="app">
+    </div>
+    <!-- iOS-26 chrome-sampling hints (styles.css #frame-edge-*). Safari 26 tints the status bar and
+         the bottom toolbar independently, each by sampling a fixed element hugging that edge, so we
+         park one 12px strip at each edge carrying --frame / --frame-bottom. Deliberately SIBLINGS of
+         #app, outside the SPA mount: Preact renders into #app and would otherwise blow these away on
+         its first patch. They are colour metadata, not UI — half off-screen, pointer-events:none,
+         and occluded by every route's ground (which does not stop Safari sampling them). -->
+    <div id="frame-edge-top" aria-hidden="true">
+    </div>
+    <div id="frame-edge-bottom" aria-hidden="true">
+    </div>
+  </body>
+</html>

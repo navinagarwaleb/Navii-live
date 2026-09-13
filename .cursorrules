@@ -1,0 +1,12 @@
+# UI & Design Aesthetic Standards (Navii Live)
+Inspired by Little Hum (`app.yourlittlehum.com`) — match fonts, palette, spacing, and quiz chrome.
+
+- **Theme:** Warm paper canvas with deep-navy ink. Editorial gift-app feel, not generic SaaS.
+- **Fonts:** Fraunces (display/headlines) + DM Sans (body/UI). Headings use soft serif weight ~600, letter-spacing ~-0.01em, line-height ~1.2.
+- **Surfaces:** Page paper `#F7F4F0`. Warm ivory `#FFF6EC`. Selection fields/cards may use white `#FFFFFF` with ultra-soft borders `#E7E3DE`.
+- **Accent:** Soft gold `#F2B76E` and sunset peach `#FFC89B`. Selected tiles use warm sand fill `#F3E9DF` and gold-line border `#E4C29B`.
+- **Ink:** Deep navy `#0D1B2E` / deep blue `#1E2F4D` for titles. Mist blue `#6D87A6` / muted `#8D95A1` for subtitles.
+- **Cards & Tiles:** Soft rounded corners (`rounded-lg` ~16px), generous tap targets (min ~96px option cards), subtle `shadow-xs`, press scale ~0.97.
+- **Primary CTA:** Deep-navy pill buttons, warm-ivory label, elevated soft shadow. Fixed bottom nav on paper with dock shadow.
+- **Icons / Avatars:** Prefer minimalist Lucide icons in soft earthy containers — never generic letter-initial avatar circles.
+- **Spacing:** Mobile-first column `clamp(320px, 92vw, 560px)`, quiz-like padding ~18–24px, safe-area aware bottom bars.

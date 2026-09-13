@@ -1,0 +1,69 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@theme {
+  --font-sans: var(--font-body), "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: var(--font-display), "Fraunces", Georgia, "Times New Roman", serif;
+
+  /* Little Hum design system */
+  --color-paper: #f7f4f0;
+  --color-background: #f7f4f0;
+  --color-surface: #fff6ec;
+  --color-field: #ffffff;
+  --color-foreground: #0d1b2e;
+  --color-ink: #0d1b2e;
+  --color-deep-blue: #1e2f4d;
+  --color-muted: #8d95a1;
+  --color-mist: #6d87a6;
+  --color-accent: #f2b76e;
+  --color-accent-soft: #ffc89b;
+  --color-border: #e7e3de;
+  --color-line-strong: #e4c29b;
+  --color-selected: #f3e9df;
+
+  --radius-sm: 0.5rem;
+  --radius: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+}
+
+:root {
+  --paper: #f7f4f0;
+  --frame: #f7f4f0;
+  --ink: #0d1b2e;
+  --background: #f7f4f0;
+  --foreground: #0d1b2e;
+  --line: #e7e3de;
+  --col: clamp(320px, 92vw, 560px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: #0d1b2e;
+  color: #fff6ec;
+}
