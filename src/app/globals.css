@@ -68,15 +68,26 @@ input {
   color: #fff6ec;
 }
 
-@keyframes step-in {
+@keyframes fadeSlideIn {
   from {
     opacity: 0;
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.animate-step-in {
-  animation: step-in 200ms ease-out;
+.animate-in {
+  animation: fadeSlideIn 250ms ease-out both;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

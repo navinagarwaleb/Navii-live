@@ -5,8 +5,8 @@ import {
   ArrowLeft,
   ArrowRight,
   AtSign,
+  ChevronDown,
   CircleCheckBig,
-  ExternalLink,
   Heart,
   Loader2,
   Music,
@@ -133,9 +133,9 @@ function SelectionTile({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "relative flex min-h-[92px] touch-manipulation flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border-[1.5px] border-border bg-field px-2 py-3.5 text-center shadow-xs transition-all outline-none",
+        "relative flex min-h-[92px] touch-manipulation flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border-[1.5px] border-border bg-field px-2 py-3.5 text-center shadow-xs transition-all duration-150 outline-none",
         "hover:border-line-strong hover:bg-selected focus-visible:ring-4 focus-visible:ring-accent/30 active:scale-[0.97]",
-        selected && "border-line-strong bg-selected shadow-none",
+        selected && "scale-[1.02] border-line-strong bg-selected shadow-none",
         disabled && "pointer-events-none opacity-60",
         className,
       )}
@@ -183,6 +183,7 @@ export function RequestWizard() {
   const [requesterName, setRequesterName] = useState("");
   const [dedication, setDedication] = useState("");
   const [skipDedication, setSkipDedication] = useState(false);
+  const [customTip, setCustomTip] = useState("");
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submittedRequest, setSubmittedRequest] =
@@ -346,6 +347,21 @@ export function RequestWizard() {
           ? "Add your name or table to continue"
           : undefined;
 
+  function resetWizard() {
+    setStep(1);
+    setOccasion("");
+    setSong(null);
+    setGenreFilter("All");
+    setSearchQuery("");
+    setRequesterName("");
+    setDedication("");
+    setSkipDedication(false);
+    setSubmittedRequest(null);
+    setError("");
+    setCustomTip("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function goToStep(next: number) {
     setStep(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -412,42 +428,92 @@ export function RequestWizard() {
           . Listen out for your moment.
         </p>
 
-        <Card className="mt-10 w-full p-6 text-left">
+        <Card className="mt-10 w-full rounded-2xl border border-border bg-field p-6 text-left shadow-none">
           <div className="flex gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-surface text-[#B8862F]">
               <Heart size={18} />
             </span>
             <div>
               <h2 className="font-serif text-lg leading-[1.3] font-semibold text-deep-blue">
-                Show some love
+                Feel generous?
               </h2>
               <p className="mt-1 text-sm leading-[1.5] text-mist">
-                Follow the music, share your night, or leave a little tip.
+                Drop a tip to keep the music going.
               </p>
             </div>
           </div>
-          <div className="mt-5 grid gap-3">
-            <a
-              href="https://instagram.com/navii.live"
-              target="_blank"
-              rel="noreferrer"
-              className="flex min-h-[52px] items-center justify-between rounded-full border border-border bg-surface px-5 text-sm font-semibold text-ink"
-            >
-              <span className="flex items-center gap-2">
-                <AtSign size={16} /> @navii.live
-              </span>
-              <ExternalLink size={15} />
-            </a>
-            <a
-              href="https://www.buymeacoffee.com/navii.live"
-              target="_blank"
-              rel="noreferrer"
-              className="flex min-h-[52px] items-center justify-between rounded-full bg-ink px-5 text-sm font-semibold text-surface shadow-cta"
-            >
-              Tip jar <ExternalLink size={15} />
-            </a>
+
+          <div className="mt-5 grid grid-cols-3 gap-2.5">
+            {[
+              { amount: 5, label: "$5", emoji: "☕" },
+              { amount: 10, label: "$10", emoji: "🍺" },
+              { amount: 20, label: "$20", emoji: "🎸" },
+            ].map((tip) => (
+              <a
+                key={tip.amount}
+                href={`https://www.buymeacoffee.com/navii.live?amount=${tip.amount}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-2xl border border-border bg-surface text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-selected active:scale-[0.97]"
+              >
+                <span className="text-lg leading-none">{tip.emoji}</span>
+                {tip.label}
+              </a>
+            ))}
           </div>
+
+          <details className="group mt-4 rounded-2xl border border-border bg-surface px-4 py-3">
+            <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+              Custom amount
+              <ChevronDown
+                size={16}
+                className="text-mist transition group-open:rotate-180"
+              />
+            </summary>
+            <div className="mt-3 flex gap-2">
+              <Input
+                type="number"
+                min={1}
+                inputMode="decimal"
+                placeholder="Amount"
+                value={customTip}
+                onChange={(event) => setCustomTip(event.target.value)}
+                className="min-h-[44px]"
+              />
+              <a
+                href={
+                  customTip && Number(customTip) > 0
+                    ? `https://www.buymeacoffee.com/navii.live?amount=${encodeURIComponent(customTip)}`
+                    : "https://www.buymeacoffee.com/navii.live"
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-[44px] min-w-[72px] items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-surface"
+              >
+                Tip
+              </a>
+            </div>
+          </details>
+
+          <a
+            href="https://instagram.com/navii.live"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 flex min-h-[44px] items-center justify-center gap-2 text-sm font-semibold text-mist transition hover:text-deep-blue"
+          >
+            <AtSign size={15} />
+            Follow @navii.live
+          </a>
         </Card>
+
+        <button
+          type="button"
+          onClick={resetWizard}
+          className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-semibold text-surface shadow-cta transition hover:bg-deep-blue active:scale-[0.98]"
+        >
+          <Music size={18} />
+          Request Another Song
+        </button>
       </main>
     );
   }
@@ -456,9 +522,12 @@ export function RequestWizard() {
     <main className="mx-auto min-h-dvh w-full max-w-col pb-36">
       <header className="sticky top-0 z-10 overflow-hidden bg-paper px-[18px] pt-[calc(env(safe-area-inset-top)+22px)] sm:px-5">
         <div className="flex items-center justify-between gap-3 pb-3.5">
-          <p className="font-serif text-lg font-semibold tracking-[-0.01em] text-deep-blue">
+          <a
+            href="/"
+            className="font-serif text-lg font-semibold tracking-[-0.01em] text-deep-blue transition-opacity hover:opacity-70"
+          >
             Navii Live
-          </p>
+          </a>
           <span className="text-xs font-medium text-mist">
             Step {step} of {TOTAL_STEPS}
           </span>
@@ -478,16 +547,15 @@ export function RequestWizard() {
               className={cn(
                 "h-1 rounded-full transition-colors duration-300",
                 index < step ? "bg-accent" : "bg-border",
+                index === step - 1 &&
+                  "shadow-[0_0_6px_rgba(242,183,110,0.4)]",
               )}
             />
           ))}
         </div>
       </header>
 
-      <section
-        key={step}
-        className="animate-step-in mt-[18px] px-[18px] sm:px-5"
-      >
+      <section key={step} className="animate-in mt-[18px] px-[18px] sm:px-5">
         {step === 1 && (
           <>
             <StepIntro
@@ -537,27 +605,29 @@ export function RequestWizard() {
                 Which sound like you?
               </p>
 
-              <div className="flex flex-wrap gap-2">
-                {availableFilters.map((filter) => {
-                  const selected = genreFilter === filter;
-                  const count = tagCounts[filter] ?? 0;
-                  return (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setGenreFilter(filter)}
-                      className={cn(
-                        "min-h-[40px] rounded-full border border-border bg-field px-4 py-2 text-[13px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
-                        !selected && "hover:border-border hover:bg-field",
-                        selected &&
-                          "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
-                      )}
-                    >
-                      {filter}
-                      <span className="ml-1.5 text-muted">({count})</span>
-                    </button>
-                  );
-                })}
+              <div className="-mx-[18px] overflow-x-auto px-[18px] scrollbar-none sm:-mx-5 sm:px-5">
+                <div className="flex w-max gap-2 pb-1">
+                  {availableFilters.map((filter) => {
+                    const selected = genreFilter === filter;
+                    const count = tagCounts[filter] ?? 0;
+                    return (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setGenreFilter(filter)}
+                        className={cn(
+                          "min-h-[32px] shrink-0 rounded-full border border-border bg-field px-3.5 py-1.5 text-[12px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
+                          !selected && "hover:border-border hover:bg-field",
+                          selected &&
+                            "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
+                        )}
+                      >
+                        {filter}
+                        <span className="ml-1.5 text-muted">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -578,9 +648,16 @@ export function RequestWizard() {
 
             <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {loadingSongs ? (
-                <div className="col-span-2 grid min-h-[44px] place-items-center py-16 text-mist sm:col-span-3">
-                  <Loader2 className="animate-spin" />
-                </div>
+                Array.from({ length: 6 }, (_, index) => (
+                  <div
+                    key={index}
+                    className="flex min-h-[92px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-field px-2 py-3.5"
+                  >
+                    <div className="size-6 animate-pulse rounded-full bg-border" />
+                    <div className="h-3 w-16 animate-pulse rounded-full bg-border" />
+                    <div className="h-2.5 w-12 animate-pulse rounded-full bg-border" />
+                  </div>
+                ))
               ) : (
                 filteredSongs.map((item) => (
                   <SelectionTile
