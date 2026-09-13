@@ -11,7 +11,6 @@ import {
   Loader2,
   Music,
   SkipForward,
-  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,7 +175,6 @@ function StepIntro({
 export function RequestWizard() {
   const [supabase] = useState(() => createSupabaseBrowserClient());
   const [step, setStep] = useState(1);
-  const [stepVisible, setStepVisible] = useState(true);
   const [occasion, setOccasion] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
   const [song, setSong] = useState<Song | null>(null);
@@ -349,12 +347,8 @@ export function RequestWizard() {
           : undefined;
 
   function goToStep(next: number) {
-    setStepVisible(false);
-    window.setTimeout(() => {
-      setStep(next);
-      setStepVisible(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 160);
+    setStep(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function submitRequest() {
@@ -491,12 +485,8 @@ export function RequestWizard() {
       </header>
 
       <section
-        className={cn(
-          "mt-[18px] px-[18px] transition-all duration-200 ease-out sm:px-5",
-          stepVisible
-            ? "translate-y-0 opacity-100"
-            : "translate-y-2 opacity-0",
-        )}
+        key={step}
+        className="animate-step-in mt-[18px] px-[18px] sm:px-5"
       >
         {step === 1 && (
           <>
@@ -510,7 +500,20 @@ export function RequestWizard() {
                 <SelectionTile
                   key={item.label}
                   selected={occasion === item.label}
-                  onClick={() => setOccasion(item.label)}
+                  onClick={() => {
+                    if (
+                      occasion &&
+                      occasion !== item.label &&
+                      (song || requesterName.trim())
+                    ) {
+                      const confirmed = window.confirm(
+                        "Changing the occasion will reset your song selection. Continue?",
+                      );
+                      if (!confirmed) return;
+                      setSong(null);
+                    }
+                    setOccasion(item.label);
+                  }}
                 >
                   <span className="text-[22px] leading-none">{item.emoji}</span>
                   <span className="line-clamp-3 text-[13px] leading-[1.2] font-medium text-ink">
@@ -530,18 +533,9 @@ export function RequestWizard() {
             />
 
             <div className="mt-4 grid gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <p className="min-w-0 text-[clamp(0.98rem,4.1vw,1.1rem)] font-semibold leading-[1.35] text-deep-blue">
-                  Which sound like you?
-                </p>
-                <span
-                  aria-hidden="true"
-                  className="inline-flex shrink-0 cursor-default select-none items-center gap-1.5 rounded-full border border-[rgba(255,200,155,0.55)] bg-surface px-3.5 py-[7px] text-[0.85rem] leading-none font-semibold whitespace-nowrap text-[#B8862F] opacity-60"
-                >
-                  <Sparkles size={12} strokeWidth={2} className="text-accent" />
-                  More ideas
-                </span>
-              </div>
+              <p className="min-w-0 text-[clamp(0.98rem,4.1vw,1.1rem)] font-semibold leading-[1.35] text-deep-blue">
+                Which sound like you?
+              </p>
 
               <div className="flex flex-wrap gap-2">
                 {availableFilters.map((filter) => {
@@ -599,10 +593,10 @@ export function RequestWizard() {
                       <Music size={12} strokeWidth={1.75} />
                     </span>
                     <span className="w-full">
-                      <span className="line-clamp-2 block text-[12px] leading-[1.2] font-medium text-ink">
+                      <span className="line-clamp-2 block text-[13px] leading-[1.3] font-semibold text-ink">
                         {item.title}
                       </span>
-                      <span className="mt-1 line-clamp-1 block text-[12px] leading-[1.3] font-medium text-mist">
+                      <span className="mt-1 line-clamp-1 block text-[13px] leading-[1.3] font-medium text-[#5A7A9A]">
                         {item.artist}
                       </span>
                     </span>
