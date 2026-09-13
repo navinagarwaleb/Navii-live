@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react";
 import {
   AuthOrDivider,
-  SocialAuthButtons,
+  GoogleSignInButton,
 } from "@/components/google-sign-in-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,7 +105,7 @@ export function SignupForm() {
 
   return (
     <div className="mt-8 grid gap-5">
-      <SocialAuthButtons />
+      <GoogleSignInButton />
 
       <AuthOrDivider />
 

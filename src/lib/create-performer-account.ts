@@ -26,10 +26,8 @@ export async function isUsernameAvailable(username: string) {
   return !data;
 }
 
-/** Start OAuth; returns to /auth/callback after consent. */
-export async function signInWithOAuthProvider(
-  provider: "google" | "facebook",
-) {
+/** Start Google OAuth; returns to /auth/callback after consent. */
+export async function signInWithGoogle() {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -37,19 +35,11 @@ export async function signInWithOAuthProvider(
   const redirectTo = `${origin}/auth/callback`;
 
   const { error } = await supabase.auth.signInWithOAuth({
-    provider,
+    provider: "google",
     options: { redirectTo },
   });
 
   if (error) throw new Error(error.message);
-}
-
-export async function signInWithGoogle() {
-  return signInWithOAuthProvider("google");
-}
-
-export async function signInWithFacebook() {
-  return signInWithOAuthProvider("facebook");
 }
 
 export async function signUpWithEmail(email: string, password: string) {

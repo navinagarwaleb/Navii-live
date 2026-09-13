@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import {
   AuthOrDivider,
-  SocialAuthButtons,
+  GoogleSignInButton,
 } from "@/components/google-sign-in-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,7 +97,7 @@ export function LoginForm({
     <div className="mt-8 grid gap-5">
       {mode === "signin" ? (
         <>
-          <SocialAuthButtons />
+          <GoogleSignInButton />
           <AuthOrDivider />
           <form onSubmit={(event) => void onSignIn(event)} className="grid gap-4">
             <div>

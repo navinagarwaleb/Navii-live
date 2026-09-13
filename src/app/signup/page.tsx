@@ -31,8 +31,7 @@ export default async function SignupPage({
           Get your free page
         </h1>
         <p className="mt-3 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
-          Sign up with Google, Facebook, or email, then claim a username and go
-          live.
+          Sign up with Google or email, then claim a username and go live.
         </p>
         {authError ? (
           <p
