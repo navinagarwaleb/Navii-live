@@ -125,9 +125,17 @@ export async function sendPasswordReset(identifier: string) {
 const MIN_PASSWORD_LENGTH = 8;
 
 export function hasEmailPasswordIdentity(
-  identities: { provider: string }[] | null | undefined,
+  user: {
+    identities?: { provider: string }[] | null;
+    app_metadata?: Record<string, unknown> | null;
+  } | null | undefined,
 ) {
-  return Boolean(identities?.some((identity) => identity.provider === "email"));
+  if (!user) return false;
+  if (user.identities?.some((identity) => identity.provider === "email")) {
+    return true;
+  }
+  const providers = user.app_metadata?.providers;
+  return Array.isArray(providers) && providers.includes("email");
 }
 
 /**
@@ -158,7 +166,7 @@ export async function changePassword(input: {
     throw new Error("You need to sign in again to change your password.");
   }
 
-  const needsCurrent = hasEmailPasswordIdentity(user.identities);
+  const needsCurrent = hasEmailPasswordIdentity(user);
   if (needsCurrent) {
     const current = input.currentPassword?.trim() ?? "";
     if (!current) throw new Error("Enter your current password.");

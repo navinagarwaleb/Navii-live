@@ -24,36 +24,59 @@ export default function AdminSettingsPage() {
       return;
     }
 
+    let active = true;
+
     void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (!active) return;
+
+        if (userError || !user) {
+          router.replace("/login");
+          return;
+        }
+
+        const { data, error: loadError } = await supabase
+          .from("performers")
+          .select(PERFORMER_SELECT_SAFE)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!active) return;
+
+        if (loadError || !data) {
+          setError(loadError?.message ?? "Could not load your profile.");
+          setPerformer(null);
+          return;
+        }
+
+        setPerformer(data as Performer);
+        setError("");
+      } catch (loadFailure) {
+        if (!active) return;
+        setError(
+          loadFailure instanceof Error
+            ? loadFailure.message
+            : "Could not load your profile.",
+        );
+      } finally {
+        if (active) setLoading(false);
       }
-
-      const { data, error: loadError } = await supabase
-        .from("performers")
-        .select(PERFORMER_SELECT_SAFE)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (loadError || !data) {
-        setError(loadError?.message ?? "Could not load your profile.");
-        setLoading(false);
-        return;
-      }
-
-      setPerformer(data as Performer);
-      setLoading(false);
     })();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   if (loading) {
     return (
       <main className="grid min-h-dvh place-items-center bg-[#1C1917] text-[#A8A29E]">
-        <Loader2 className="animate-spin" />
+        <Loader2 className="animate-spin" aria-label="Loading profile" />
       </main>
     );
   }

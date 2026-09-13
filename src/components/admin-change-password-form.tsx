@@ -32,7 +32,7 @@ export function AdminChangePasswordForm() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      setHasPassword(hasEmailPasswordIdentity(user?.identities));
+      setHasPassword(hasEmailPasswordIdentity(user));
     })();
   }, []);
 

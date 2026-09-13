@@ -5,12 +5,12 @@ import {
   Check,
   ChevronDown,
   Clock3,
-  Heart,
   LogOut,
   Music2,
   QrCode,
   Radio,
   UserRound,
+  Wallet,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -47,7 +47,7 @@ const TABS: { id: AdminTab; label: string; icon: typeof Music2 }[] = [
   { id: "queue", label: "Queue", icon: Radio },
   { id: "live", label: "Live", icon: QrCode },
   { id: "songs", label: "Songs", icon: Music2 },
-  { id: "tips", label: "Tips", icon: Heart },
+  { id: "tips", label: "Tips", icon: Wallet },
 ];
 
 function parseTab(value: string | null): AdminTab {

@@ -160,7 +160,7 @@ export function AdminTipsForm({
         disabled={saving}
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : null}
-        Save tips
+        Save
       </Button>
     </form>
   );

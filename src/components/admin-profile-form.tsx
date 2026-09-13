@@ -70,10 +70,14 @@ export function AdminProfileForm({
 
       <div className="grid gap-4 rounded-2xl border border-white/10 bg-[#292524] p-5">
         <div>
-          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
+          <label
+            htmlFor="profile-display-name"
+            className="mb-2 block text-sm font-medium text-[#A8A29E]"
+          >
             Display name
           </label>
           <Input
+            id="profile-display-name"
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
@@ -81,10 +85,14 @@ export function AdminProfileForm({
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
+          <label
+            htmlFor="profile-bio"
+            className="mb-2 block text-sm font-medium text-[#A8A29E]"
+          >
             Bio / tagline
           </label>
           <Input
+            id="profile-bio"
             value={bio}
             onChange={(event) => setBio(event.target.value)}
             className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
