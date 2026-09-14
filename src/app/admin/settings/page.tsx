@@ -75,14 +75,14 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-[#1C1917] text-[#A8A29E]">
+      <main className="admin-shell grid min-h-dvh place-items-center bg-[#1C1917] text-[#A8A29E]">
         <Loader2 className="animate-spin" aria-label="Loading profile" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-dvh bg-[#1C1917] text-[#FAFAF9]">
+    <main className="admin-shell min-h-dvh bg-[#1C1917] text-[#FAFAF9]">
       <div className="mx-auto w-full max-w-xl px-5 py-6 sm:px-6 sm:py-8">
         <Link
           href="/admin"

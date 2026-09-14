@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import { PerformerTipButton } from "@/components/performer-tip-button";
 import { DEFAULT_BIO } from "@/lib/performer-defaults";
 import { getPerformerByUsername } from "@/lib/performers";
 
@@ -48,7 +47,7 @@ export default async function PerformerLandingPage({ params }: PageProps) {
           {bio}
         </p>
 
-        <div className="animate-rise rise-4 mt-8 grid gap-3">
+        <div className="animate-rise rise-4 mt-8">
           <Link
             href={`/${performer.username}/request`}
             className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-ink px-6 text-base font-semibold text-surface shadow-cta transition hover:bg-deep-blue active:scale-[0.98]"
@@ -56,7 +55,6 @@ export default async function PerformerLandingPage({ params }: PageProps) {
             Request a Song
             <ArrowRight size={16} />
           </Link>
-          <PerformerTipButton performer={performer} />
         </div>
 
         <p className="animate-rise rise-5 pt-3 text-center text-[11px] text-mist">

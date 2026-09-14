@@ -68,6 +68,18 @@ input {
   color: #fff6ec;
 }
 
+/* Dark admin surfaces: navy selection is invisible on dark inputs */
+.admin-shell ::selection {
+  background: #f2b76e;
+  color: #0d1b2e;
+}
+
+.admin-shell input::selection,
+.admin-shell textarea::selection {
+  background: #f2b76e;
+  color: #0d1b2e;
+}
+
 @keyframes fadeSlideIn {
   from {
     opacity: 0;

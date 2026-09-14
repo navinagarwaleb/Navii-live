@@ -14,7 +14,7 @@ const displayFont = Fraunces({
 
 export const metadata: Metadata = {
   title: "Song Table",
-  description: "Send a song request and make the moment yours.",
+  description: "The shortest distance between a fan and a song.",
 };
 
 export const viewport: Viewport = {

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import { SignupForm } from "@/components/signup-form";
 
 export default async function SignupPage({
@@ -16,12 +16,7 @@ export default async function SignupPage({
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-col flex-col px-6 py-8 sm:px-8 sm:py-12">
-      <Link
-        href="/"
-        className="font-serif text-xl font-semibold tracking-[-0.01em] text-deep-blue transition-opacity hover:opacity-70"
-      >
-        Song Table
-      </Link>
+      <BrandMark href="/" />
 
       <section className="mt-12">
         {authError ? (

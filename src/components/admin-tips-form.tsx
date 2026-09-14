@@ -102,50 +102,48 @@ export function AdminTipsForm({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          <div>
-            <label className="mb-2 block text-xs font-medium text-[#A8A29E] sm:text-sm">
-              PayPal.Me
-            </label>
-            <Input
-              value={paypalMeLink}
-              onChange={(event) => setPaypalMeLink(event.target.value)}
-              className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
-              placeholder="paypal.me/you"
-              inputMode="url"
-              autoComplete="off"
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-xs font-medium text-[#A8A29E] sm:text-sm">
-              Venmo
-            </label>
-            <Input
-              value={venmoHandle}
-              onChange={(event) => setVenmoHandle(event.target.value)}
-              className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
-              placeholder="@yourname"
-              autoComplete="off"
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-xs font-medium text-[#A8A29E] sm:text-sm">
-              Cash App
-            </label>
-            <Input
-              value={cashAppHandle}
-              onChange={(event) => setCashAppHandle(event.target.value)}
-              className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
-              placeholder="$yourname"
-              autoComplete="off"
-            />
-          </div>
+      <div className="grid gap-4 rounded-2xl border border-white/10 bg-[#292524] p-5">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
+            PayPal.Me
+          </label>
+          <Input
+            value={paypalMeLink}
+            onChange={(event) => setPaypalMeLink(event.target.value)}
+            className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
+            placeholder="https://www.paypal.com/paypalme/yourname"
+            inputMode="url"
+            autoComplete="off"
+          />
+          <p className="mt-2 text-xs text-[#A8A29E]">
+            Use your full PayPal.Me link so mobile fans can tip with Apple Pay
+            or a card.
+          </p>
         </div>
-        <p className="mt-3 text-xs text-[#A8A29E]">
-          PayPal.Me works best as a full link so fans can tip with Apple Pay or
-          a card.
-        </p>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
+            Venmo
+          </label>
+          <Input
+            value={venmoHandle}
+            onChange={(event) => setVenmoHandle(event.target.value)}
+            className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
+            placeholder="@yourname"
+            autoComplete="off"
+          />
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
+            Cash App
+          </label>
+          <Input
+            value={cashAppHandle}
+            onChange={(event) => setCashAppHandle(event.target.value)}
+            className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
+            placeholder="$yourname"
+            autoComplete="off"
+          />
+        </div>
       </div>
 
       {social.instagramUrl || social.facebookUrl ? (

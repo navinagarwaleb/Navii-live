@@ -420,7 +420,7 @@ export function AdminDashboard({
   }
 
   return (
-    <main className="min-h-dvh bg-[#1C1917] text-[#FAFAF9]">
+    <main className="admin-shell min-h-dvh bg-[#1C1917] text-[#FAFAF9]">
       <div className="mx-auto w-full max-w-3xl px-5 py-6 sm:px-6 sm:py-8">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -465,7 +465,7 @@ export function AdminDashboard({
               type="button"
               onClick={() => selectTab(item.id)}
               className={cn(
-                "inline-flex min-h-[44px] min-w-fit shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-[11px] font-semibold whitespace-nowrap transition sm:flex-1 sm:text-sm",
+                "inline-flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-semibold whitespace-nowrap transition sm:gap-1.5 sm:px-3 sm:text-sm",
                 tab === item.id
                   ? "bg-[#FAFAF9] text-[#1C1917]"
                   : "text-[#A8A29E] hover:text-[#FAFAF9]",

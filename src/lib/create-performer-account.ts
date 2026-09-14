@@ -119,7 +119,14 @@ export async function sendPasswordReset(identifier: string) {
     redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (/rate limit|too many/i.test(error.message)) {
+      throw new Error(
+        "Too many reset emails were sent. Wait a few minutes, then try once more.",
+      );
+    }
+    throw new Error(error.message);
+  }
 }
 
 const MIN_PASSWORD_LENGTH = 8;

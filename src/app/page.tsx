@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/brand-mark";
 import { LandingCtas } from "@/components/landing-ctas";
 import { AuthErrorRedirect } from "@/components/auth-error-redirect";
 
@@ -11,9 +12,7 @@ export default function Home() {
       />
 
       <div className="relative z-10">
-        <p className="font-serif text-xl font-semibold tracking-[-0.01em] text-deep-blue">
-          Song Table
-        </p>
+        <BrandMark />
       </div>
 
       <section className="relative z-10 py-16">
