@@ -10,6 +10,7 @@ create table if not exists public.performers (
   interac_email text,
   paypal_link text,
   custom_tip_link text,
+  custom_tags text[] not null default '{}',
   user_id uuid references auth.users(id) on delete cascade unique,
   created_at timestamptz not null default now()
 );
@@ -20,6 +21,7 @@ create table if not exists public.songs (
   artist text not null,
   active boolean not null default true,
   tags text[] not null default '{}',
+  artwork_url text,
   performer_id uuid references public.performers(id) on delete cascade,
   created_at timestamptz not null default now()
 );

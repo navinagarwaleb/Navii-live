@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   Clock3,
+  Heart,
   LogOut,
   Music2,
   QrCode,
@@ -62,97 +63,148 @@ function sortRequests(items: SongRequest[]) {
   );
 }
 
+const MONTHS = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+] as const;
+
 function formatRequestTime(value: string, mounted: boolean) {
   if (!mounted) {
     return (
       <span
         aria-hidden
-        className="inline-block h-3.5 w-14 animate-pulse rounded-full bg-white/10"
+        className="inline-block h-3.5 w-28 animate-pulse rounded-full bg-white/10"
       />
     );
   }
 
-  return new Date(value).toLocaleTimeString([], {
+  const date = new Date(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = MONTHS[date.getMonth()] ?? "JAN";
+  const year = date.getFullYear();
+  const time = date.toLocaleTimeString([], {
     hour: "numeric",
     minute: "2-digit",
   });
+
+  return `${day}-${month}-${year} · ${time}`;
 }
 
 function ActiveRequestCard({
   item,
   updating,
   mounted,
+  expanded,
+  onToggle,
   onUpdate,
 }: {
   item: SongRequest;
   updating: string | null;
   mounted: boolean;
+  expanded: boolean;
+  onToggle: () => void;
   onUpdate: (id: string, status: RequestStatus) => void;
 }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-white/10 bg-[#292524] p-6">
-      <div className="flex items-start justify-between gap-3">
-        <span className="inline-flex min-h-[44px] items-center rounded-full bg-white/10 px-4 text-sm font-bold text-[#FAFAF9]">
-          {occasionEmoji[item.occasion] ?? "✨"} {item.occasion}
-        </span>
+    <article className="overflow-hidden rounded-xl border border-white/10 bg-[#292524]">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition hover:bg-white/5"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-serif text-base font-semibold tracking-[-0.01em] text-[#FAFAF9]">
+            {item.song_title}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{item.artist}</p>
+        </div>
         <span
           className={cn(
-            "inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-bold capitalize",
+            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
             statusStyles[item.status],
           )}
         >
           {item.status}
         </span>
-      </div>
+        <ChevronDown
+          size={16}
+          className={cn(
+            "shrink-0 text-[#A8A29E] transition-transform",
+            expanded && "rotate-180",
+          )}
+        />
+      </button>
 
-      <h2 className="mt-5 font-serif text-3xl leading-relaxed font-semibold tracking-[-0.02em] text-[#FAFAF9]">
-        {item.song_title}
-      </h2>
-      <p className="mt-1 text-lg font-medium text-[#D6D3D1]">{item.artist}</p>
+      {expanded ? (
+        <div className="space-y-3 border-t border-white/10 px-3.5 pt-3 pb-3.5">
+          <div className="grid gap-1.5 text-sm text-[#D6D3D1]">
+            <p className="flex items-center gap-2">
+              <UserRound size={14} className="shrink-0 text-[#A8A29E]" />
+              <span>
+                <span className="text-[#A8A29E]">From </span>
+                <strong className="font-semibold text-[#FAFAF9]">
+                  {item.requester_name}
+                </strong>
+              </span>
+            </p>
+            {item.dedication ? (
+              <p className="flex items-start gap-2 text-[13px] leading-snug">
+                <Heart size={14} className="mt-0.5 shrink-0 text-[#A8A29E]" />
+                <span className="break-words whitespace-normal">
+                  <span className="text-[#A8A29E]">Dedication </span>
+                  <span className="text-[#D6D3D1]">“{item.dedication}”</span>
+                </span>
+              </p>
+            ) : null}
+            <p className="flex items-center gap-2 text-xs text-[#A8A29E]">
+              <Clock3 size={13} className="shrink-0" />
+              {formatRequestTime(item.created_at, mounted)}
+              <span className="text-[#57534E]">·</span>
+              <span>
+                {occasionEmoji[item.occasion] ?? "✨"} {item.occasion}
+              </span>
+            </p>
+          </div>
 
-      <div className="mt-5 grid gap-3 rounded-2xl bg-[#1C1917] p-5 text-base leading-relaxed">
-        <p className="flex items-center gap-2 text-[#FAFAF9]">
-          <UserRound size={18} className="text-[#A8A29E]" />
-          Requested by <strong className="font-bold">{item.requester_name}</strong>
-        </p>
-        {item.dedication && (
-          <p className="flex items-start gap-2 text-[#FAFAF9]">
-            <span className="mt-0.5 text-lg">💌</span>
-            <span className="font-medium">“{item.dedication}”</span>
-          </p>
-        )}
-        <p className="flex items-center gap-2 text-sm text-[#A8A29E]">
-          <Clock3 size={16} />
-          {formatRequestTime(item.created_at, mounted)}
-        </p>
-      </div>
-
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        <button
-          type="button"
-          disabled={updating === item.id}
-          onClick={() => onUpdate(item.id, "accepted")}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3 text-sm font-bold text-[#1C1917] transition hover:bg-emerald-400 disabled:opacity-40"
-        >
-          <Check size={18} /> Accept
-        </button>
-        <button
-          type="button"
-          disabled={updating === item.id}
-          onClick={() => onUpdate(item.id, "rejected")}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-white/15 px-3 text-sm font-bold text-[#FAFAF9] transition hover:bg-white/20 disabled:opacity-40"
-        >
-          <X size={18} /> Reject
-        </button>
-        <button
-          type="button"
-          disabled={updating === item.id}
-          onClick={() => onUpdate(item.id, "played")}
-          className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#FAFAF9] px-3 text-sm font-bold text-[#1C1917] transition hover:bg-white disabled:opacity-40"
-        >
-          <Music2 size={18} /> Played
-        </button>
-      </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={updating === item.id}
+              onClick={() => onUpdate(item.id, "accepted")}
+              className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-emerald-500 px-2 text-xs font-bold text-[#1C1917] transition hover:bg-emerald-400 disabled:opacity-40"
+            >
+              <Check size={14} /> Accept
+            </button>
+            <button
+              type="button"
+              disabled={updating === item.id}
+              onClick={() => onUpdate(item.id, "rejected")}
+              className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-white/15 px-2 text-xs font-bold text-[#FAFAF9] transition hover:bg-white/20 disabled:opacity-40"
+            >
+              <X size={14} /> Reject
+            </button>
+            <button
+              type="button"
+              disabled={updating === item.id}
+              onClick={() => onUpdate(item.id, "played")}
+              className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-[#FAFAF9] px-2 text-xs font-bold text-[#1C1917] transition hover:bg-white disabled:opacity-40"
+            >
+              <Music2 size={14} /> Played
+            </button>
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -165,33 +217,26 @@ function HistoryRequestRow({
   mounted: boolean;
 }) {
   return (
-    <article className="rounded-xl border border-white/5 bg-[#1C1917]/70 px-4 py-4 opacity-75">
-      <div className="flex items-start justify-between gap-3">
+    <article className="rounded-lg border border-white/5 bg-[#1C1917]/70 px-3 py-2.5 opacity-80">
+      <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-serif text-lg font-medium text-[#D6D3D1]">
+          <p className="truncate text-sm font-medium text-[#D6D3D1]">
             {item.song_title}
           </p>
-          <p className="mt-0.5 truncate text-sm text-[#A8A29E]">
-            {item.artist} · {item.requester_name}
+          <p className="mt-0.5 truncate text-[11px] text-[#A8A29E]">
+            {item.artist} · {item.requester_name} ·{" "}
+            {formatRequestTime(item.created_at, mounted)}
           </p>
         </div>
         <span
           className={cn(
-            "shrink-0 rounded-full px-3 py-1 text-xs font-bold capitalize",
+            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
             statusStyles[item.status],
           )}
         >
           {item.status}
         </span>
       </div>
-      <p className="mt-3 flex items-center gap-2 text-xs text-[#78716C]">
-        <Clock3 size={13} />
-        {formatRequestTime(item.created_at, mounted)}
-        <span className="text-[#57534E]">·</span>
-        <span>
-          {occasionEmoji[item.occasion] ?? "✨"} {item.occasion}
-        </span>
-      </p>
     </article>
   );
 }
@@ -226,6 +271,7 @@ export function AdminDashboard({
   const [error, setError] = useState(initialError);
   const [mounted, setMounted] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -421,18 +467,18 @@ export function AdminDashboard({
 
   return (
     <main className="admin-shell min-h-dvh bg-[#1C1917] text-[#FAFAF9]">
-      <div className="mx-auto w-full max-w-3xl px-5 py-6 sm:px-6 sm:py-8">
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-2xl bg-[#FAFAF9] text-[#1C1917]">
-              <Music2 size={22} />
+      <div className="mx-auto w-full max-w-3xl px-4 py-4 sm:px-6 sm:py-6">
+        <header className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#FAFAF9] text-[#1C1917]">
+              <Music2 size={18} />
             </span>
-            <div>
-              <p className="text-xs font-bold tracking-[0.18em] text-[#A8A29E] uppercase">
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold tracking-[0.14em] text-[#A8A29E] uppercase">
                 {performer.display_name}
               </p>
-              <h1 className="font-serif text-2xl leading-relaxed font-semibold tracking-[-0.02em]">
-                Stage
+              <h1 className="font-serif text-xl leading-tight font-semibold tracking-[-0.02em]">
+                Dashboard
               </h1>
             </div>
           </div>
@@ -457,7 +503,7 @@ export function AdminDashboard({
 
         <nav
           aria-label="Admin sections"
-          className="mt-6 flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-[#292524] p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="mt-4 flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-[#292524] p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {TABS.map((item) => (
             <button
@@ -491,30 +537,31 @@ export function AdminDashboard({
 
         {tab === "queue" ? (
           <>
-            <section className="mt-6 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
-                <p className="text-xs font-bold tracking-[0.14em] text-[#A8A29E] uppercase">
+            <section className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-[#292524] px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
                   Waiting
                 </p>
-                <p className="mt-2 font-serif text-4xl leading-none font-semibold">
+                <p className="font-serif text-2xl leading-none font-semibold tabular-nums">
                   {pendingCount}
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
-                <p className="text-xs font-bold tracking-[0.14em] text-[#A8A29E] uppercase">
+              <div className="h-8 w-px bg-white/10" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
                   Live updates
                 </p>
                 <p
                   className={cn(
-                    "mt-3 flex min-h-[44px] items-center gap-2 text-base font-bold",
+                    "mt-0.5 flex items-center gap-1.5 text-sm font-semibold",
                     connected ? "text-emerald-300" : "text-[#A8A29E]",
                   )}
                 >
                   <Radio
-                    size={18}
+                    size={14}
                     className={connected ? "animate-pulse" : ""}
                   />
-                  {connected ? "Connected" : "Offline"}
+                  {connected ? "Live" : "Offline"}
                 </p>
               </div>
             </section>
@@ -522,55 +569,54 @@ export function AdminDashboard({
             {error && (
               <div
                 role="alert"
-                className="mt-5 rounded-2xl border border-red-400/40 bg-red-500/15 p-4 text-sm font-semibold text-red-200"
+                className="mt-3 rounded-xl border border-red-400/40 bg-red-500/15 px-3 py-2.5 text-sm font-semibold text-red-200"
               >
                 {error}
               </div>
             )}
 
-            <section className="mt-8">
-              <div className="mb-4 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold tracking-[0.16em] text-amber-200/80 uppercase">
-                    Active queue
-                  </p>
-                  <h2 className="font-serif text-xl leading-relaxed font-semibold">
-                    Pending requests
-                  </h2>
-                </div>
-                <span className="text-sm font-bold text-[#A8A29E]">
+            <section className="mt-5">
+              <div className="mb-2.5 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-[#FAFAF9]">
+                  Pending requests
+                </h2>
+                <span className="text-xs font-bold text-[#A8A29E]">
                   {activeQueue.length}
                 </span>
               </div>
 
               {activeQueue.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-[#292524] px-6 py-14 text-center">
-                  <span className="mx-auto grid size-14 place-items-center rounded-full bg-white/10 text-[#A8A29E]">
-                    <Music2 size={24} />
-                  </span>
-                  <h3 className="mt-4 font-serif text-xl leading-relaxed font-semibold">
+                <div className="rounded-xl border border-white/10 bg-[#292524] px-4 py-8 text-center">
+                  <Music2 size={20} className="mx-auto text-[#A8A29E]" />
+                  <p className="mt-2 text-sm font-semibold text-[#FAFAF9]">
                     Queue is clear
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">
-                    Share /{performer.username}. New requests appear here.
+                  </p>
+                  <p className="mt-1 text-xs text-[#A8A29E]">
+                    Share /{performer.username} for new requests.
                   </p>
                   <button
                     type="button"
                     onClick={() => selectTab("live")}
-                    className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/15 px-4 text-sm font-semibold text-[#FAFAF9] transition hover:bg-white/10"
+                    className="mt-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/15 px-3 text-xs font-semibold text-[#FAFAF9] transition hover:bg-white/10"
                   >
-                    <QrCode size={15} />
-                    Get your QR & link
+                    <QrCode size={14} />
+                    Get QR & link
                   </button>
                 </div>
               ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-2">
                   {activeQueue.map((item) => (
                     <ActiveRequestCard
                       key={item.id}
                       item={item}
                       updating={updating}
                       mounted={mounted}
+                      expanded={expandedId === item.id}
+                      onToggle={() =>
+                        setExpandedId((current) =>
+                          current === item.id ? null : item.id,
+                        )
+                      }
                       onUpdate={(id, status) => void updateStatus(id, status)}
                     />
                   ))}
@@ -578,28 +624,28 @@ export function AdminDashboard({
               )}
             </section>
 
-            <section className="mt-8">
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#292524]">
+            <section className="mt-5">
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-[#292524]">
                 <button
                   type="button"
                   aria-expanded={historyOpen}
                   onClick={() => setHistoryOpen((open) => !open)}
-                  className="flex min-h-[56px] w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-white/5"
+                  className="flex min-h-[48px] w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition hover:bg-white/5"
                 >
                   <div>
-                    <p className="text-xs font-bold tracking-[0.16em] text-[#A8A29E] uppercase">
-                      Completed history
+                    <p className="text-[10px] font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
+                      History
                     </p>
-                    <p className="mt-1 font-serif text-lg leading-relaxed font-semibold text-[#D6D3D1]">
+                    <p className="text-sm font-semibold text-[#D6D3D1]">
                       Played & rejected
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-[#A8A29E]">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold text-[#A8A29E]">
                       {completedHistory.length}
                     </span>
                     <ChevronDown
-                      size={20}
+                      size={16}
                       className={cn(
                         "text-[#A8A29E] transition-transform duration-200",
                         historyOpen && "rotate-180",
@@ -609,13 +655,13 @@ export function AdminDashboard({
                 </button>
 
                 {historyOpen && (
-                  <div className="border-t border-white/10 px-4 py-4">
+                  <div className="border-t border-white/10 px-2.5 py-2.5">
                     {completedHistory.length === 0 ? (
-                      <p className="px-1 py-6 text-center text-sm leading-relaxed text-[#A8A29E]">
+                      <p className="px-1 py-4 text-center text-xs text-[#A8A29E]">
                         No completed requests yet.
                       </p>
                     ) : (
-                      <div className="grid gap-3">
+                      <div className="grid gap-1.5">
                         {completedHistory.map((item) => (
                           <HistoryRequestRow
                             key={item.id}
@@ -640,7 +686,7 @@ export function AdminDashboard({
 
         {tab === "songs" ? (
           <div className="mt-6">
-            <AdminSongEditor performerId={performer.id} />
+            <AdminSongEditor performer={performer} />
           </div>
         ) : null}
 

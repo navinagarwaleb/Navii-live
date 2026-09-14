@@ -72,10 +72,14 @@ export function normalizeCashAppHandle(value: string | null | undefined) {
 }
 
 export function getTipMethods(performer: Performer): TipMethods {
+  // Empty/null paypal_me_link means intentionally cleared — don't revive legacy paypal_link.
+  const paypalSource =
+    performer.paypal_me_link === null || performer.paypal_me_link === ""
+      ? performer.paypal_me_link
+      : performer.paypal_me_link || performer.paypal_link;
+
   return {
-    paypalMeUrl: normalizePaypalMeLink(
-      performer.paypal_me_link || performer.paypal_link,
-    ),
+    paypalMeUrl: normalizePaypalMeLink(paypalSource),
     venmoHandle: normalizeVenmoHandle(performer.venmo_handle),
     cashAppHandle: normalizeCashAppHandle(performer.cash_app_handle),
   };

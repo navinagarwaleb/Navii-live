@@ -12,6 +12,7 @@ export type Performer = {
   cash_app_handle?: string | null;
   instagram_handle?: string | null;
   facebook_url?: string | null;
+  custom_tags?: string[];
   user_id?: string | null;
   created_at?: string;
 };
@@ -22,6 +23,7 @@ export type Song = {
   artist: string;
   active?: boolean;
   tags?: string[];
+  artwork_url?: string | null;
   performer_id?: string | null;
   created_at?: string;
 };

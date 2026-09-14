@@ -36,6 +36,7 @@ const TIP_PRESETS = [
 ] as const;
 const MIN_CUSTOM_TIP = 5;
 const CUSTOM_TIP_MAX_CHARS = 6;
+const MAX_DEDICATION_CHARS = 80;
 
 /** Digits + optional single decimal, max 6 chars (e.g. 999.99). */
 function sanitizeCustomTipInput(value: string) {
@@ -62,13 +63,13 @@ const STEP_LABELS: Record<number, string> = {
 
 /** Preferred chip order when present; any other Supabase tags still appear after. */
 const PREFERRED_TAG_ORDER = [
-  "Sing-Alongs",
-  "Classic Rock",
-  "Pub Anthems",
-  "Crowd Favourites",
-  "Romantic & Slow",
-  "Late Night Vibe",
-  "New / Fresh",
+  "sing-alongs",
+  "classic rock",
+  "pub anthems",
+  "crowd favourites",
+  "romantic & slow",
+  "late night vibe",
+  "new / fresh",
 ] as const;
 
 const occasions = [
@@ -85,61 +86,61 @@ const demoSongs: Song[] = [
     id: "demo-1",
     title: "Perfect",
     artist: "Ed Sheeran",
-    tags: ["Romantic & Slow", "Sing-Alongs"],
+    tags: ["romantic & slow", "sing-alongs"],
   },
   {
     id: "demo-2",
     title: "Until I Found You",
     artist: "Stephen Sanchez",
-    tags: ["Romantic & Slow"],
+    tags: ["romantic & slow"],
   },
   {
     id: "demo-3",
     title: "A Thousand Years",
     artist: "Christina Perri",
-    tags: ["Sing-Alongs", "Romantic & Slow"],
+    tags: ["sing-alongs", "romantic & slow"],
   },
   {
     id: "demo-4",
     title: "Can’t Help Falling in Love",
     artist: "Elvis Presley",
-    tags: ["Classic Rock", "Sing-Alongs"],
+    tags: ["classic rock", "sing-alongs"],
   },
   {
     id: "demo-5",
     title: "Yellow",
     artist: "Coldplay",
-    tags: ["Sing-Alongs", "Crowd Favourites"],
+    tags: ["sing-alongs", "crowd favourites"],
   },
   {
     id: "demo-6",
     title: "You Are the Reason",
     artist: "Calum Scott",
-    tags: ["Romantic & Slow"],
+    tags: ["romantic & slow"],
   },
   {
     id: "demo-7",
     title: "All of Me",
     artist: "John Legend",
-    tags: ["Sing-Alongs", "Romantic & Slow"],
+    tags: ["sing-alongs", "romantic & slow"],
   },
   {
     id: "demo-8",
     title: "Lover",
     artist: "Taylor Swift",
-    tags: ["Sing-Alongs", "New / Fresh"],
+    tags: ["sing-alongs", "new / fresh"],
   },
   {
     id: "demo-9",
     title: "I Won’t Give Up",
     artist: "Jason Mraz",
-    tags: ["Late Night Vibe"],
+    tags: ["late night vibe"],
   },
   {
     id: "demo-10",
     title: "Thinking Out Loud",
     artist: "Ed Sheeran",
-    tags: ["Pub Anthems", "Sing-Alongs"],
+    tags: ["pub anthems", "sing-alongs"],
   },
 ];
 
@@ -379,20 +380,23 @@ export function RequestWizard({ performer }: { performer: Performer }) {
   }, [genreFilter, searchQuery, songs]);
 
   const availableFilters = useMemo(() => {
-    const present = new Set(
-      songs.flatMap((item) =>
-        (item.tags ?? []).map((tag) => tag.trim()).filter(Boolean),
-      ),
-    );
+    const byKey = new Map<string, string>();
+    for (const item of songs) {
+      for (const raw of item.tags ?? []) {
+        const tag = raw.trim();
+        if (!tag) continue;
+        const key = tag.toLowerCase();
+        if (!byKey.has(key)) byKey.set(key, tag);
+      }
+    }
 
-    const preferred = PREFERRED_TAG_ORDER.filter((tag) => present.has(tag));
-    const extras = [...present]
-      .filter(
-        (tag) =>
-          !PREFERRED_TAG_ORDER.includes(
-            tag as (typeof PREFERRED_TAG_ORDER)[number],
-          ),
-      )
+    const preferred = PREFERRED_TAG_ORDER.map((key) => byKey.get(key)).filter(
+      (tag): tag is string => Boolean(tag),
+    );
+    const preferredKeys = new Set(PREFERRED_TAG_ORDER);
+    const extras = [...byKey.entries()]
+      .filter(([key]) => !preferredKeys.has(key as (typeof PREFERRED_TAG_ORDER)[number]))
+      .map(([, tag]) => tag)
       .sort((a, b) => a.localeCompare(b));
 
     return ["All", ...preferred, ...extras];
@@ -615,20 +619,45 @@ export function RequestWizard({ performer }: { performer: Performer }) {
               </div>
             ) : null}
           </Card>
-        ) : showSocial ? (
-          <div className="mt-10 flex items-center justify-center gap-2">
-            {social.instagramUrl ? (
-              <SocialIconButton href={social.instagramUrl} label="Instagram">
-                <InstagramMark className="size-5" />
-              </SocialIconButton>
+        ) : (
+          <Card className="mt-10 w-full rounded-2xl border border-border bg-field p-6 text-left shadow-none">
+            <div className="flex gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-surface text-[#B8862F]">
+                <Heart size={18} />
+              </span>
+              <div>
+                <h2 className="font-serif text-lg leading-[1.3] font-semibold text-deep-blue">
+                  Feel generous?
+                </h2>
+                <p className="mt-1 text-sm leading-[1.5] text-mist">
+                  No digital tips set up yet! Walk up, say hi, and leave a paper
+                  tip like it&apos;s 1999.
+                </p>
+              </div>
+            </div>
+
+            {showSocial ? (
+              <div className="mt-4 flex items-center justify-center gap-2">
+                {social.instagramUrl ? (
+                  <SocialIconButton
+                    href={social.instagramUrl}
+                    label="Instagram"
+                  >
+                    <InstagramMark className="size-5" />
+                  </SocialIconButton>
+                ) : null}
+                {social.facebookUrl ? (
+                  <SocialIconButton
+                    href={social.facebookUrl}
+                    label="Facebook"
+                  >
+                    <FacebookMark className="size-5" />
+                  </SocialIconButton>
+                ) : null}
+              </div>
             ) : null}
-            {social.facebookUrl ? (
-              <SocialIconButton href={social.facebookUrl} label="Facebook">
-                <FacebookMark className="size-5" />
-              </SocialIconButton>
-            ) : null}
-          </div>
-        ) : null}
+          </Card>
+        )}
 
         <button
           type="button"
@@ -852,24 +881,44 @@ export function RequestWizard({ performer }: { performer: Performer }) {
             <StepIntro
               eyebrow="One last touch"
               title="Add a dedication?"
-              description="Optional: a name or a quick message for the mic."
+              description="Optional short note for the mic. Keep it brief so it fits on the artist dashboard."
             />
             <Card className="mt-6 bg-surface p-6 shadow-none">
-              <label
-                htmlFor="dedication"
-                className="mb-3 block text-sm font-medium text-mist"
-              >
-                Dedicated to...
-              </label>
+              <div className="mb-3 flex items-end justify-between gap-3">
+                <label
+                  htmlFor="dedication"
+                  className="block text-sm font-medium text-mist"
+                >
+                  Dedicated to...
+                </label>
+                <span
+                  className={cn(
+                    "text-xs tabular-nums",
+                    dedication.length >= MAX_DEDICATION_CHARS
+                      ? "font-semibold text-[#C73A2B]"
+                      : "text-muted",
+                  )}
+                >
+                  {dedication.length}/{MAX_DEDICATION_CHARS}
+                </span>
+              </div>
               <Input
                 id="dedication"
                 autoFocus
-                maxLength={120}
+                maxLength={MAX_DEDICATION_CHARS}
                 value={dedication}
-                onChange={(event) => setDedication(event.target.value)}
+                onChange={(event) =>
+                  setDedication(
+                    event.target.value.slice(0, MAX_DEDICATION_CHARS),
+                  )
+                }
                 placeholder="e.g. My wonderful parents"
                 disabled={submitting}
               />
+              <p className="mt-2 text-xs leading-snug text-mist">
+                Max {MAX_DEDICATION_CHARS} characters so the full message shows
+                on the artist’s phone.
+              </p>
             </Card>
 
             <SelectionTile

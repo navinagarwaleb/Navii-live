@@ -15,6 +15,11 @@ export default function AdminSettingsPage() {
   const [performer, setPerformer] = useState<Performer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [openTags, setOpenTags] = useState(false);
+
+  useEffect(() => {
+    setOpenTags(window.location.hash === "#custom-tags");
+  }, []);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -73,6 +78,18 @@ export default function AdminSettingsPage() {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (loading || !performer || !openTags) return;
+
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById("custom-tags")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [loading, performer, openTags]);
+
   if (loading) {
     return (
       <main className="admin-shell grid min-h-dvh place-items-center bg-[#1C1917] text-[#A8A29E]">
@@ -102,10 +119,11 @@ export default function AdminSettingsPage() {
             </p>
           ) : null}
           {performer ? (
-            <div className="grid gap-10">
+            <div className="grid gap-3">
               <AdminProfileForm
                 performer={performer}
                 onSaved={(next) => setPerformer(next)}
+                initialOpenSection={openTags ? "tags" : null}
               />
               <AdminChangePasswordForm />
             </div>

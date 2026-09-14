@@ -12,10 +12,10 @@ export function BrandMark({
 }) {
   const content = (
     <>
-      <span className="block font-serif text-xl font-semibold tracking-[-0.01em] text-deep-blue">
+      <span className="block font-serif text-[clamp(1.75rem,5vw,2.25rem)] font-semibold tracking-[-0.01em] text-deep-blue">
         Song Table
       </span>
-      <span className="mt-1 block text-[11px] leading-[1.35] text-mist">
+      <span className="mt-1.5 block text-[0.95rem] leading-[1.4] text-mist">
         {TAGLINE}
       </span>
     </>

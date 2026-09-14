@@ -28,7 +28,9 @@ export function AdminTipsForm({
 }) {
   const social = getSocialLinks(performer);
   const [paypalMeLink, setPaypalMeLink] = useState(
-    performer.paypal_me_link ?? performer.paypal_link ?? "",
+    performer.paypal_me_link === null || performer.paypal_me_link === ""
+      ? ""
+      : (performer.paypal_me_link || performer.paypal_link || ""),
   );
   const [venmoHandle, setVenmoHandle] = useState(
     performer.venmo_handle
@@ -64,7 +66,9 @@ export function AdminTipsForm({
     const { data, error: saveError } = await supabase
       .from("performers")
       .update({
+        // Keep legacy paypal_link in sync so clearing the field actually sticks
         paypal_me_link: paypal,
+        paypal_link: paypal,
         venmo_handle: venmo,
         cash_app_handle: cashApp,
       })
@@ -74,7 +78,7 @@ export function AdminTipsForm({
 
     if (saveError) {
       setError(
-        /paypal_me_link|venmo_handle|cash_app_handle|column .* does not exist|Could not find/i.test(
+        /paypal_me_link|paypal_link|venmo_handle|cash_app_handle|column .* does not exist|Could not find/i.test(
           saveError.message ?? "",
         )
           ? "Tip columns are missing in Supabase. Run migration 20260913_performers_p2p_tips.sql in the SQL editor, then try again."
