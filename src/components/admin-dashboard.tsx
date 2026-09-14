@@ -457,7 +457,7 @@ export function AdminDashboard({
 
         <nav
           aria-label="Admin sections"
-          className="mt-6 flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-[#292524] p-1"
+          className="mt-6 flex gap-1 overflow-x-auto rounded-full border border-white/10 bg-[#292524] p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {TABS.map((item) => (
             <button
@@ -465,7 +465,7 @@ export function AdminDashboard({
               type="button"
               onClick={() => selectTab(item.id)}
               className={cn(
-                "inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold whitespace-nowrap transition",
+                "inline-flex min-h-[44px] min-w-fit shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-[11px] font-semibold whitespace-nowrap transition sm:flex-1 sm:text-sm",
                 tab === item.id
                   ? "bg-[#FAFAF9] text-[#1C1917]"
                   : "text-[#A8A29E] hover:text-[#FAFAF9]",

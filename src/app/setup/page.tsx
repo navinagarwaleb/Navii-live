@@ -8,7 +8,7 @@ export default function SetupPage() {
         href="/"
         className="font-serif text-xl font-semibold tracking-[-0.01em] text-deep-blue transition-opacity hover:opacity-70"
       >
-        Navii Live
+        Song Table
       </Link>
 
       <section className="mt-12">

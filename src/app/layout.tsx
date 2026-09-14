@@ -13,7 +13,7 @@ const displayFont = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Navii Live",
+  title: "Song Table",
   description: "Send a song request and make the moment yours.",
 };
 

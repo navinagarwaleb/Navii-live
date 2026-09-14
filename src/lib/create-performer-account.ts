@@ -116,7 +116,7 @@ export async function sendPasswordReset(identifier: string) {
 
   const origin = window.location.origin;
   const { error } = await supabase.auth.resetPasswordForEmail(payload.email, {
-    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/admin")}`,
+    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
   });
 
   if (error) throw new Error(error.message);

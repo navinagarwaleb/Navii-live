@@ -36,7 +36,7 @@ export function AdminLogin() {
       </div>
       <div className="mt-5 text-center">
         <p className="text-xs font-bold tracking-[0.18em] text-[#A8A29E] uppercase">
-          Navii Live
+          Song Table
         </p>
         <h1 className="mt-2 font-serif text-3xl leading-relaxed font-semibold tracking-[-0.02em]">
           Stage dashboard

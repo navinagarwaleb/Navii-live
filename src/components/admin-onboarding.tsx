@@ -42,14 +42,14 @@ export function AdminOnboardingBanner({
       </p>
 
       <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-start">
-        <div className="shrink-0 rounded-2xl bg-white p-3">
+        <div className="mx-auto w-fit shrink-0 self-start rounded-2xl bg-white p-3 sm:mx-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={qrSrc}
             alt={`QR code for ${pageUrl}`}
             width={160}
             height={160}
-            className="size-40"
+            className="block size-40"
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-3">

@@ -1,8 +1,10 @@
 import { LandingCtas } from "@/components/landing-ctas";
+import { AuthErrorRedirect } from "@/components/auth-error-redirect";
 
 export default function Home() {
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-col flex-col justify-between overflow-hidden px-6 py-8 sm:px-8 sm:py-12">
+      <AuthErrorRedirect />
       <div
         aria-hidden
         className="landing-wash pointer-events-none absolute inset-0 z-0"
@@ -10,7 +12,7 @@ export default function Home() {
 
       <div className="relative z-10">
         <p className="font-serif text-xl font-semibold tracking-[-0.01em] text-deep-blue">
-          Navii Live
+          Song Table
         </p>
       </div>
 

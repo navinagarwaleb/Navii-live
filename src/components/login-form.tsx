@@ -22,7 +22,9 @@ export function LoginForm({
   initialError?: string | null;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "forgot">("signin");
+  const [mode, setMode] = useState<"signin" | "forgot">(
+    initialError?.toLowerCase().includes("reset") ? "forgot" : "signin",
+  );
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

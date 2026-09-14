@@ -105,3 +105,62 @@ export function TipMethodIcon({
     </span>
   );
 }
+
+export function InstagramMark(props: SVGProps<SVGSVGElement>) {
+  return (
+    <BrandMark {...props}>
+      <rect
+        x="3"
+        y="3"
+        width="18"
+        height="18"
+        rx="5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+      />
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" />
+    </BrandMark>
+  );
+}
+
+export function FacebookMark(props: SVGProps<SVGSVGElement>) {
+  return (
+    <BrandMark {...props}>
+      <path
+        fill="currentColor"
+        d="M14.5 22v-8.2h2.8l.4-3.2h-3.2V8.6c0-.9.3-1.6 1.6-1.6H18V4.2C17.5 4.1 16.4 4 15.2 4 12.6 4 10.8 5.6 10.8 8.3v2.3H8v3.2h2.8V22h3.7Z"
+      />
+    </BrandMark>
+  );
+}
+
+export function SocialIconButton({
+  href,
+  label,
+  children,
+  tone = "light",
+}: {
+  href: string;
+  label: string;
+  children: ReactNode;
+  tone?: "light" | "dark";
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      className={cn(
+        "inline-flex size-12 items-center justify-center rounded-2xl border transition active:scale-[0.97]",
+        tone === "dark"
+          ? "border-white/15 bg-[#1C1917] text-[#FAFAF9] hover:border-white/30 hover:bg-[#292524]"
+          : "border-border bg-surface text-ink hover:border-line-strong hover:bg-selected",
+      )}
+    >
+      {children}
+    </a>
+  );
+}
+

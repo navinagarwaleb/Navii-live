@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  AtSign,
   CircleCheckBig,
   ExternalLink,
   Heart,
@@ -12,15 +11,23 @@ import {
   Music,
   SkipForward,
 } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import { getSocialLinks, hasSocialLinks } from "@/lib/social";
 import { hasTipMethods, tipMethodLinks } from "@/lib/tips";
 import type { Performer, Song, SongRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { TipAmountGlyph, TipMethodIcon } from "@/components/tip-method-icons";
+import {
+  FacebookMark,
+  InstagramMark,
+  SocialIconButton,
+  TipAmountGlyph,
+  TipMethodIcon,
+} from "@/components/tip-method-icons";
 
 const TIP_PRESETS = [
   { amount: 5 as const, label: "$5" },
@@ -28,6 +35,20 @@ const TIP_PRESETS = [
   { amount: 20 as const, label: "$20" },
 ] as const;
 const MIN_CUSTOM_TIP = 5;
+const CUSTOM_TIP_MAX_CHARS = 6;
+
+/** Digits + optional single decimal, max 6 chars (e.g. 999.99). */
+function sanitizeCustomTipInput(value: string) {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  const normalized =
+    firstDot === -1
+      ? cleaned
+      : `${cleaned.slice(0, firstDot + 1)}${cleaned
+          .slice(firstDot + 1)
+          .replace(/\./g, "")}`;
+  return normalized.slice(0, CUSTOM_TIP_MAX_CHARS);
+}
 
 const TOTAL_STEPS = 5;
 
@@ -183,6 +204,8 @@ function StepIntro({
 
 export function RequestWizard({ performer }: { performer: Performer }) {
   const showTips = hasTipMethods(performer);
+  const social = getSocialLinks(performer);
+  const showSocial = hasSocialLinks(performer);
   const [supabase] = useState(() => createSupabaseBrowserClient());
   const [step, setStep] = useState(1);
   const [occasion, setOccasion] = useState("");
@@ -212,9 +235,10 @@ export function RequestWizard({ performer }: { performer: Performer }) {
   }
 
   function onCustomTipChange(value: string) {
-    setCustomTip(value);
-    const trimmed = value.trim();
-    if (!trimmed) {
+    const next = sanitizeCustomTipInput(value);
+    setCustomTip(next);
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === ".") {
       setCustomTipError("");
       setSelectedTipAmount(null);
       return;
@@ -490,7 +514,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-stretch gap-2">
+            <div className="mt-5 grid grid-cols-[1fr_1fr_1fr_auto] items-stretch gap-2">
               {TIP_PRESETS.map((tip) => {
                 const selected =
                   selectedTipAmount === tip.amount && customTip.trim() === "";
@@ -500,7 +524,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
                     type="button"
                     onClick={() => selectPresetTip(tip.amount)}
                     className={cn(
-                      "inline-flex min-h-[56px] min-w-[64px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl border px-2 text-sm font-semibold transition active:scale-[0.97] sm:flex-none",
+                      "inline-flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl border px-1 text-sm font-semibold transition active:scale-[0.97]",
                       selected
                         ? "border-[#E4C29B] bg-[#F3E9DF] text-deep-blue"
                         : "border-border bg-surface text-ink hover:border-line-strong hover:bg-selected",
@@ -514,22 +538,30 @@ export function RequestWizard({ performer }: { performer: Performer }) {
                   </button>
                 );
               })}
-              <div className="relative min-w-[96px] flex-[1.4] self-center">
-                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm font-semibold text-mist">
+              <label className="relative block h-[56px] w-[6.25rem]">
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute top-1/2 left-2.5 z-[1] -translate-y-1/2 text-xs font-semibold text-mist"
+                >
                   $
                 </span>
-                <Input
+                <input
                   type="number"
+                  inputMode="decimal"
                   min={MIN_CUSTOM_TIP}
                   step="1"
-                  inputMode="decimal"
+                  max={999999}
                   placeholder="Custom"
                   value={customTip}
                   onChange={(event) => onCustomTipChange(event.target.value)}
                   aria-invalid={Boolean(customTipError)}
-                  className="min-h-[56px] pl-7"
+                  aria-label="Custom tip amount"
+                  className={cn(
+                    "box-border h-full w-full rounded-full border bg-field py-0 pl-[1.35rem] pr-0.5 text-left text-xs font-semibold tabular-nums text-ink shadow-xs outline-none transition placeholder:text-mist focus:border-line-strong focus:ring-4 focus:ring-accent/25 [&::-webkit-inner-spin-button]:h-8 [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100",
+                    customTipError ? "border-red-400" : "border-border",
+                  )}
                 />
-              </div>
+              </label>
             </div>
             {customTipError ? (
               <p role="alert" className="mt-2 text-xs font-medium text-red-600">
@@ -562,27 +594,41 @@ export function RequestWizard({ performer }: { performer: Performer }) {
               </div>
             ) : null}
 
-            <a
-              href={`https://instagram.com/${performer.username}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 flex min-h-[44px] items-center justify-center gap-2 text-sm font-semibold text-mist transition hover:text-deep-blue"
-            >
-              <AtSign size={15} />
-              Follow @{performer.username}
-            </a>
+            {showSocial ? (
+              <div className="mt-4 flex items-center justify-center gap-2">
+                {social.instagramUrl ? (
+                  <SocialIconButton
+                    href={social.instagramUrl}
+                    label="Instagram"
+                  >
+                    <InstagramMark className="size-5" />
+                  </SocialIconButton>
+                ) : null}
+                {social.facebookUrl ? (
+                  <SocialIconButton
+                    href={social.facebookUrl}
+                    label="Facebook"
+                  >
+                    <FacebookMark className="size-5" />
+                  </SocialIconButton>
+                ) : null}
+              </div>
+            ) : null}
           </Card>
-        ) : (
-          <a
-            href={`https://instagram.com/${performer.username}`}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-10 flex min-h-[44px] items-center justify-center gap-2 text-sm font-semibold text-mist transition hover:text-deep-blue"
-          >
-            <AtSign size={15} />
-            Follow @{performer.username}
-          </a>
-        )}
+        ) : showSocial ? (
+          <div className="mt-10 flex items-center justify-center gap-2">
+            {social.instagramUrl ? (
+              <SocialIconButton href={social.instagramUrl} label="Instagram">
+                <InstagramMark className="size-5" />
+              </SocialIconButton>
+            ) : null}
+            {social.facebookUrl ? (
+              <SocialIconButton href={social.facebookUrl} label="Facebook">
+                <FacebookMark className="size-5" />
+              </SocialIconButton>
+            ) : null}
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -592,6 +638,13 @@ export function RequestWizard({ performer }: { performer: Performer }) {
           <Music size={18} />
           Request Another Song
         </button>
+
+        <Link
+          href="/signup"
+          className="mt-4 inline-flex min-h-[44px] items-center justify-center text-sm text-mist transition hover:text-deep-blue"
+        >
+          🎤 Are you a musician? Get your free page →
+        </Link>
       </main>
     );
   }
@@ -641,7 +694,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
               title="What’s the occasion?"
               description="Pick the moment that fits right now."
             />
-            <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-3 gap-2.5">
               {occasions.map((item) => (
                 <SelectionTile
                   key={item.label}
@@ -724,7 +777,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
               {searchQuery.trim() ? ` · “${searchQuery.trim()}”` : ""}
             </p>
 
-            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-3 gap-2.5">
               {loadingSongs ? (
                 Array.from({ length: 6 }, (_, index) => (
                   <div
@@ -759,7 +812,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
                 ))
               )}
               {!loadingSongs && filteredSongs.length === 0 && (
-                <p className="col-span-2 py-12 text-center text-[0.95rem] leading-[1.5] text-mist sm:col-span-3">
+                <p className="col-span-3 py-12 text-center text-[0.95rem] leading-[1.5] text-mist">
                   No songs match this search yet.
                 </p>
               )}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDownAZ, Clock3, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { Song } from "@/lib/types";
@@ -16,17 +16,50 @@ type ItunesHit = {
   genre: string | null;
 };
 
+type SetlistSort = "newest" | "alpha";
+
+const SONG_SELECT = "id,title,artist,active,tags,performer_id,created_at";
+
+function sortSongs(items: Song[], mode: SetlistSort) {
+  const next = [...items];
+  if (mode === "alpha") {
+    next.sort((a, b) => {
+      const byTitle = a.title.localeCompare(b.title, undefined, {
+        sensitivity: "base",
+      });
+      if (byTitle !== 0) return byTitle;
+      return a.artist.localeCompare(b.artist, undefined, {
+        sensitivity: "base",
+      });
+    });
+    return next;
+  }
+
+  next.sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+    if (bTime !== aTime) return bTime - aTime;
+    return b.id.localeCompare(a.id);
+  });
+  return next;
+}
+
 export function AdminSongEditor({ performerId }: { performerId: string }) {
   const [supabase] = useState(() => createSupabaseBrowserClient());
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<ItunesHit[]>([]);
   const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [sort, setSort] = useState<SetlistSort>("newest");
   const [loadingSongs, setLoadingSongs] = useState(true);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+
+  const sortedSongs = useMemo(() => sortSongs(songs, sort), [songs, sort]);
 
   useEffect(() => {
     if (!supabase) {
@@ -38,10 +71,10 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
     void (async () => {
       const { data, error: loadError } = await supabase
         .from("songs")
-        .select("id,title,artist,active,tags,performer_id")
+        .select(SONG_SELECT)
         .eq("performer_id", performerId)
         .eq("active", true)
-        .order("title", { ascending: true });
+        .order("created_at", { ascending: false });
 
       if (loadError) {
         setError(loadError.message);
@@ -57,6 +90,7 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
     if (term.length < 2) {
       setHits([]);
       setSearching(false);
+      setOpen(false);
       return;
     }
 
@@ -74,13 +108,17 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
           if (!response.ok) {
             setError(payload.error ?? "Search failed.");
             setHits([]);
+            setOpen(false);
           } else {
             setError("");
-            setHits(payload.results ?? []);
+            const next = payload.results ?? [];
+            setHits(next);
+            setOpen(next.length > 0);
           }
         } catch {
           setError("Could not search iTunes.");
           setHits([]);
+          setOpen(false);
         } finally {
           setSearching(false);
         }
@@ -89,6 +127,25 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
 
     return () => window.clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    function onPointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null;
+      if (
+        searchWrapRef.current &&
+        target &&
+        !searchWrapRef.current.contains(target)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+    };
+  }, []);
 
   function alreadyInRepertoire(title: string, artist: string) {
     const t = title.toLowerCase();
@@ -120,18 +177,19 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
         tags,
         performer_id: performerId,
       })
-      .select("id,title,artist,active,tags,performer_id")
+      .select(SONG_SELECT)
       .single();
 
     if (insertError) {
       setError(insertError.message);
     } else if (data) {
-      setSongs((current) =>
-        [...current, data as Song].sort((a, b) =>
-          a.title.localeCompare(b.title),
-        ),
-      );
+      const song = data as Song;
+      setSongs((current) => [song, ...current.filter((item) => item.id !== song.id)]);
+      setSort("newest");
       setMessage(`Added “${hit.title}”.`);
+      setQuery("");
+      setHits([]);
+      setOpen(false);
     }
     setAddingId(null);
   }
@@ -168,23 +226,91 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
         </p>
       </div>
 
-      <div className="relative">
-        <Search
-          size={18}
-          className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#A8A29E]"
-        />
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search songs or artists…"
-          className="border-white/15 bg-[#292524] pl-11 text-[#FAFAF9]"
-        />
-        {searching ? (
-          <Loader2
-            size={16}
-            className="absolute top-1/2 right-4 -translate-y-1/2 animate-spin text-[#A8A29E]"
-          />
+      <div ref={searchWrapRef} className="relative z-50">
+        {open && hits.length > 0 ? (
+          <div
+            role="listbox"
+            aria-label="Song suggestions"
+            className="absolute top-full left-0 right-0 z-50 mt-2 max-h-[40vh] overflow-y-auto rounded-2xl border border-white/15 bg-[#1C1917] p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+          >
+            {hits.map((hit) => {
+              const exists = alreadyInRepertoire(hit.title, hit.artist);
+              return (
+                <button
+                  key={hit.trackId}
+                  type="button"
+                  role="option"
+                  disabled={exists || addingId === hit.trackId}
+                  onClick={() => void addSong(hit)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition",
+                    exists
+                      ? "opacity-50"
+                      : "hover:bg-white/10 active:bg-white/15",
+                  )}
+                >
+                  {hit.artworkUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={hit.artworkUrl}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="size-10 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/10 text-[#A8A29E]">
+                      <Search size={14} />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-[#FAFAF9]">
+                      {hit.title}
+                    </span>
+                    <span className="block truncate text-xs text-[#A8A29E]">
+                      {hit.artist}
+                      {hit.album ? ` · ${hit.album}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-[#A8A29E]">
+                    {addingId === hit.trackId ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : exists ? (
+                      "Added"
+                    ) : (
+                      <Plus size={14} className="text-[#FAFAF9]" />
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         ) : null}
+
+        <div className="relative">
+          <Search
+            size={18}
+            className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#A8A29E]"
+          />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onFocus={() => {
+              if (hits.length > 0) setOpen(true);
+            }}
+            placeholder="Search songs or artists…"
+            className="border-white/15 bg-[#292524] pl-11 text-[#FAFAF9]"
+            autoComplete="off"
+            aria-autocomplete="list"
+            aria-expanded={open}
+          />
+          {searching ? (
+            <Loader2
+              size={16}
+              className="absolute top-1/2 right-4 -translate-y-1/2 animate-spin text-[#A8A29E]"
+            />
+          ) : null}
+        </div>
       </div>
 
       {error ? (
@@ -201,71 +327,49 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
         </p>
       ) : null}
 
-      {hits.length > 0 ? (
-        <div className="grid gap-2">
-          <p className="text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
-            Search results
-          </p>
-          {hits.map((hit) => {
-            const exists = alreadyInRepertoire(hit.title, hit.artist);
-            return (
-              <div
-                key={hit.trackId}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#292524] p-3"
-              >
-                {hit.artworkUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={hit.artworkUrl}
-                    alt=""
-                    width={48}
-                    height={48}
-                    className="size-12 rounded-lg object-cover"
-                  />
-                ) : (
-                  <span className="grid size-12 place-items-center rounded-lg bg-white/10 text-[#A8A29E]">
-                    <Search size={16} />
-                  </span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-[#FAFAF9]">
-                    {hit.title}
-                  </p>
-                  <p className="truncate text-sm text-[#A8A29E]">
-                    {hit.artist}
-                    {hit.album ? ` · ${hit.album}` : ""}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={exists || addingId === hit.trackId}
-                  onClick={() => void addSong(hit)}
-                  className={cn(
-                    "inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition",
-                    exists
-                      ? "bg-white/10 text-[#A8A29E]"
-                      : "bg-[#FAFAF9] text-[#1C1917] hover:bg-white",
-                  )}
-                >
-                  {addingId === hit.trackId ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Plus size={14} />
-                  )}
-                  {exists ? "Added" : "Add"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-
       <div className="grid gap-2">
-        <div className="flex items-end justify-between gap-3">
-          <p className="text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
-            Your setlist
-          </p>
-          <span className="text-sm font-bold text-[#A8A29E]">{songs.length}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
+              Your setlist
+            </p>
+            <span className="text-sm font-bold text-[#A8A29E]">
+              {songs.length}
+            </span>
+          </div>
+
+          <div
+            role="group"
+            aria-label="Sort setlist"
+            className="inline-flex rounded-full border border-white/10 bg-[#1C1917] p-0.5"
+          >
+            <button
+              type="button"
+              onClick={() => setSort("newest")}
+              className={cn(
+                "inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition",
+                sort === "newest"
+                  ? "bg-[#FAFAF9] text-[#1C1917]"
+                  : "text-[#A8A29E] hover:text-[#FAFAF9]",
+              )}
+            >
+              <Clock3 size={13} />
+              Newest
+            </button>
+            <button
+              type="button"
+              onClick={() => setSort("alpha")}
+              className={cn(
+                "inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition",
+                sort === "alpha"
+                  ? "bg-[#FAFAF9] text-[#1C1917]"
+                  : "text-[#A8A29E] hover:text-[#FAFAF9]",
+              )}
+            >
+              <ArrowDownAZ size={13} />
+              A–Z
+            </button>
+          </div>
         </div>
 
         {loadingSongs ? (
@@ -278,7 +382,7 @@ export function AdminSongEditor({ performerId }: { performerId: string }) {
             No songs yet. Search above to build your request list.
           </div>
         ) : (
-          songs.map((song) => (
+          sortedSongs.map((song) => (
             <div
               key={song.id}
               className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#292524] px-4 py-3"

@@ -10,6 +10,8 @@ export type Performer = {
   paypal_me_link?: string | null;
   venmo_handle?: string | null;
   cash_app_handle?: string | null;
+  instagram_handle?: string | null;
+  facebook_url?: string | null;
   user_id?: string | null;
   created_at?: string;
 };
@@ -21,6 +23,7 @@ export type Song = {
   active?: boolean;
   tags?: string[];
   performer_id?: string | null;
+  created_at?: string;
 };
 
 export type RequestStatus = "pending" | "accepted" | "rejected" | "played";

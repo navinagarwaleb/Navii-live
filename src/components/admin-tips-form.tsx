@@ -4,7 +4,13 @@ import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  FacebookMark,
+  InstagramMark,
+  SocialIconButton,
+} from "@/components/tip-method-icons";
 import { PERFORMER_SELECT_SAFE } from "@/lib/performer-select";
+import { getSocialLinks } from "@/lib/social";
 import {
   normalizeCashAppHandle,
   normalizePaypalMeLink,
@@ -20,6 +26,7 @@ export function AdminTipsForm({
   performer: Performer;
   onSaved?: (next: Performer) => void;
 }) {
+  const social = getSocialLinks(performer);
   const [paypalMeLink, setPaypalMeLink] = useState(
     performer.paypal_me_link ?? performer.paypal_link ?? "",
   );
@@ -95,49 +102,93 @@ export function AdminTipsForm({
         </p>
       </div>
 
-      <div className="grid gap-4 rounded-2xl border border-white/10 bg-[#292524] p-5">
+      <div className="rounded-2xl border border-white/10 bg-[#292524] p-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div>
+            <label className="mb-2 block text-xs font-medium text-[#A8A29E] sm:text-sm">
+              PayPal.Me
+            </label>
+            <Input
+              value={paypalMeLink}
+              onChange={(event) => setPaypalMeLink(event.target.value)}
+              className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
+              placeholder="paypal.me/you"
+              inputMode="url"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-xs font-medium text-[#A8A29E] sm:text-sm">
+              Venmo
+            </label>
+            <Input
+              value={venmoHandle}
+              onChange={(event) => setVenmoHandle(event.target.value)}
+              className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
+              placeholder="@yourname"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-xs font-medium text-[#A8A29E] sm:text-sm">
+              Cash App
+            </label>
+            <Input
+              value={cashAppHandle}
+              onChange={(event) => setCashAppHandle(event.target.value)}
+              className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
+              placeholder="$yourname"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-[#A8A29E]">
+          PayPal.Me works best as a full link so fans can tip with Apple Pay or
+          a card.
+        </p>
+      </div>
+
+      {social.instagramUrl || social.facebookUrl ? (
         <div>
-          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
-            PayPal.Me
-          </label>
-          <Input
-            value={paypalMeLink}
-            onChange={(event) => setPaypalMeLink(event.target.value)}
-            className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
-            placeholder="https://www.paypal.com/paypalme/yourname"
-            inputMode="url"
-            autoComplete="off"
-          />
+          <p className="mb-2 text-sm font-medium text-[#A8A29E]">
+            From your profile
+          </p>
+          <div className="flex items-center gap-2">
+            {social.instagramUrl ? (
+              <SocialIconButton
+                href={social.instagramUrl}
+                label="Instagram"
+                tone="dark"
+              >
+                <InstagramMark className="size-5" />
+              </SocialIconButton>
+            ) : null}
+            {social.facebookUrl ? (
+              <SocialIconButton
+                href={social.facebookUrl}
+                label="Facebook"
+                tone="dark"
+              >
+                <FacebookMark className="size-5" />
+              </SocialIconButton>
+            ) : null}
+          </div>
           <p className="mt-2 text-xs text-[#A8A29E]">
-            Use your full PayPal.Me link so mobile fans can tip with Apple Pay
-            or a card.
+            Edit Instagram and Facebook in Profile settings.
           </p>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
-            Venmo
-          </label>
-          <Input
-            value={venmoHandle}
-            onChange={(event) => setVenmoHandle(event.target.value)}
-            className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
-            placeholder="@yourname"
-            autoComplete="off"
-          />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-[#A8A29E]">
-            Cash App
-          </label>
-          <Input
-            value={cashAppHandle}
-            onChange={(event) => setCashAppHandle(event.target.value)}
-            className="border-white/15 bg-[#1C1917] text-[#FAFAF9]"
-            placeholder="$yourname"
-            autoComplete="off"
-          />
-        </div>
-      </div>
+      ) : (
+        <p className="text-sm text-[#A8A29E]">
+          Add Instagram or Facebook in{" "}
+          <a
+            href="/admin/settings"
+            className="font-semibold text-[#FAFAF9] underline-offset-2 hover:underline"
+          >
+            Profile settings
+          </a>{" "}
+          to show follow icons here.
+        </p>
+      )}
 
       {error ? (
         <p

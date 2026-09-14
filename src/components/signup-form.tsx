@@ -84,27 +84,44 @@ export function SignupForm() {
 
   if (awaitingVerification) {
     return (
-      <div className="mt-8 rounded-2xl border border-border bg-field p-6 text-center shadow-xs">
-        <span className="mx-auto grid size-14 place-items-center rounded-full bg-selected text-[#B8862F]">
-          <Mail size={24} />
-        </span>
-        <h2 className="mt-5 font-serif text-xl font-semibold tracking-[-0.01em] text-deep-blue">
-          Check your email to verify your account
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-mist">
-          We sent a link to <strong className="text-ink">{email.trim()}</strong>.
-          After you verify, you’ll continue to setup to claim your username.
+      <div>
+        <p className="text-[10px] font-bold tracking-[0.14em] text-[#9b671b] uppercase">
+          Almost there
         </p>
-        <p className="mt-4 text-xs text-mist">
-          Keep this tab open. We’ll redirect you automatically once you’re
-          signed in.
+        <h1 className="mt-4 font-serif text-[clamp(1.75rem,5.5vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue">
+          Check your email
+        </h1>
+        <p className="mt-3 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
+          We sent a verification link to{" "}
+          <strong className="font-semibold text-ink">{email.trim()}</strong>.
+          Open it to finish setup and claim your page.
         </p>
+        <div className="mt-8 rounded-2xl border border-border bg-field p-6 text-center shadow-xs">
+          <span className="mx-auto grid size-14 place-items-center rounded-full bg-selected text-[#B8862F]">
+            <Mail size={24} />
+          </span>
+          <p className="mt-5 text-sm leading-relaxed text-mist">
+            Keep this tab open. We’ll redirect you automatically once you’re
+            signed in.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mt-8 grid gap-5">
+    <div>
+      <p className="text-[10px] font-bold tracking-[0.14em] text-[#9b671b] uppercase">
+        Artist onboarding
+      </p>
+      <h1 className="mt-4 font-serif text-[clamp(1.75rem,5.5vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue">
+        Create your Song Table page
+      </h1>
+      <p className="mt-3 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
+        Sign up with Google or email. Next you’ll pick a username and go live.
+      </p>
+
+      <div className="mt-8 grid gap-5">
       <GoogleSignInButton />
 
       <AuthOrDivider />
@@ -219,6 +236,7 @@ export function SignupForm() {
           Sign in
         </Link>
       </p>
+      </div>
     </div>
   );
 }
