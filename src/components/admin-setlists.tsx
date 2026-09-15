@@ -48,6 +48,27 @@ const SETLIST_SELECT = "id,performer_id,name,icon,created_at,updated_at";
 
 type SetlistRow = Setlist & { song_count: number };
 
+type SetlistSongJoinRow = {
+  id: string;
+  setlist_id: string;
+  song_id: string;
+  position: number;
+  created_at?: string;
+  song?: Song | Song[] | null;
+};
+
+function normalizeSetlistSong(row: SetlistSongJoinRow): SetlistSong {
+  const song = Array.isArray(row.song) ? (row.song[0] ?? null) : (row.song ?? null);
+  return {
+    id: row.id,
+    setlist_id: row.setlist_id,
+    song_id: row.song_id,
+    position: row.position,
+    created_at: row.created_at,
+    song,
+  };
+}
+
 function SetlistIconPicker({
   value,
   onChange,
@@ -115,7 +136,7 @@ function SortableSetlistSongRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 bg-[#292524] px-2 py-1.5",
+        "flex items-center gap-3 bg-[#292524] px-2.5 py-1.5",
         index > 0 && "border-t border-white/5",
         isDragging && "z-20 rounded-xl border border-white/20 shadow-lg",
       )}
@@ -127,7 +148,7 @@ function SortableSetlistSongRow({
         {...attributes}
         {...listeners}
       >
-        <GripVertical size={16} />
+        <GripVertical size={15} />
       </button>
       {song?.artwork_url ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -147,10 +168,10 @@ function SortableSetlistSongRow({
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-[#FAFAF9]">
+        <p className="truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
           {song?.title ?? "Unknown song"}
         </p>
-        <p className="truncate text-xs text-[#A8A29E]">
+        <p className="truncate text-xs leading-snug text-[#A8A29E]">
           {song?.artist ?? "—"}
           {song && !(song.active ?? true) ? " · hidden from requests" : ""}
         </p>
@@ -318,7 +339,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
       setError(loadError.message);
       setEntries([]);
     } else {
-      setEntries((data as SetlistSong[]) ?? []);
+      setEntries(((data as SetlistSongJoinRow[]) ?? []).map(normalizeSetlistSong));
     }
     setLoadingEntries(false);
   }
@@ -471,7 +492,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
       return;
     }
 
-    const entry = data as SetlistSong;
+    const entry = normalizeSetlistSong(data as SetlistSongJoinRow);
     setEntries((current) => [...current, entry]);
     setSetlists((current) =>
       current.map((item) =>
@@ -741,30 +762,30 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                       type="button"
                       disabled={addingSongId === song.id}
                       onClick={() => void addSongToSetlist(song)}
-                      className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/10 disabled:opacity-50"
+                      className="flex w-full items-center gap-3 px-2.5 py-1.5 text-left transition hover:bg-white/10 disabled:opacity-50"
                     >
                       {song.artwork_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={song.artwork_url}
                           alt=""
-                          width={40}
-                          height={40}
+                          width={44}
+                          height={44}
                           className={cn(
-                            "size-10 shrink-0 rounded-md object-cover",
+                            "size-11 shrink-0 rounded-md object-cover",
                             !(song.active ?? true) && "opacity-50 grayscale",
                           )}
                         />
                       ) : (
-                        <span className="grid size-10 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
+                        <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
                           <Search size={14} />
                         </span>
                       )}
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-[#FAFAF9]">
+                        <span className="block truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
                           {song.title}
                         </span>
-                        <span className="block truncate text-xs text-[#A8A29E]">
+                        <span className="block truncate text-xs leading-snug text-[#A8A29E]">
                           {song.artist}
                           {!(song.active ?? true) ? " · hidden" : ""}
                         </span>
@@ -997,13 +1018,13 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
   }
 
   return (
-    <div className="grid gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-serif text-xl font-semibold text-[#FAFAF9]">
             Setlists
           </h2>
-          <p className="mt-1 text-sm text-[#A8A29E]">
+          <p className="mt-0.5 text-sm text-[#A8A29E]">
             Create setlists for each gig from your song list. A song can appear
             in more than one setlist.
           </p>
@@ -1015,9 +1036,9 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
             setNewIcon(DEFAULT_SETLIST_ICON);
             setCreating(true);
           }}
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-[#FAFAF9] px-4 text-sm font-bold text-[#1C1917] transition hover:bg-white"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#FAFAF9] px-3 text-xs font-bold text-[#1C1917] transition hover:bg-white"
         >
-          <Plus size={16} />
+          <Plus size={14} />
           New setlist
         </button>
       </div>
@@ -1060,26 +1081,26 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
               type="button"
               onClick={() => void openSetlist(setlist)}
               className={cn(
-                "flex w-full items-center gap-3 px-3.5 py-3 text-left transition hover:bg-white/5",
+                "flex w-full items-center gap-3 px-2.5 py-1.5 text-left transition hover:bg-white/5",
                 index > 0 && "border-t border-white/5",
               )}
             >
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/5 text-[#A8A29E]">
+              <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
                 {(() => {
                   const Icon = getSetlistIcon(setlist.icon);
-                  return <Icon size={18} />;
+                  return <Icon size={16} />;
                 })()}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-[#FAFAF9]">
+                <span className="block truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
                   {setlist.name}
                 </span>
-                <span className="block text-xs text-[#A8A29E]">
+                <span className="block truncate text-xs leading-snug text-[#A8A29E]">
                   {setlist.song_count} song
                   {setlist.song_count === 1 ? "" : "s"}
                 </span>
               </span>
-              <ChevronRight size={16} className="shrink-0 text-[#78716C]" />
+              <ChevronRight size={15} className="shrink-0 text-[#78716C]" />
             </button>
           ))}
         </div>

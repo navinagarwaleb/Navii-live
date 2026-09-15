@@ -126,18 +126,23 @@ function ActiveRequestCard({
   onUpdate: (id: string, status: RequestStatus) => void;
 }) {
   return (
-    <article className="overflow-hidden rounded-xl border border-white/10 bg-[#292524]">
+    <article className="bg-[#292524]">
       <button
         type="button"
         aria-expanded={expanded}
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition hover:bg-white/5"
+        className="flex w-full items-center gap-3 px-2.5 py-1.5 text-left transition hover:bg-white/5"
       >
+        <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
+          <Music2 size={14} />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-serif text-base font-semibold tracking-[-0.01em] text-[#FAFAF9]">
+          <p className="truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
             {item.song_title}
           </p>
-          <p className="mt-0.5 truncate text-xs text-[#A8A29E]">{item.artist}</p>
+          <p className="truncate text-xs leading-snug text-[#A8A29E]">
+            {item.artist}
+          </p>
         </div>
         <span
           className={cn(
@@ -148,7 +153,7 @@ function ActiveRequestCard({
           {item.status}
         </span>
         <ChevronDown
-          size={16}
+          size={15}
           className={cn(
             "shrink-0 text-[#A8A29E] transition-transform",
             expanded && "rotate-180",
@@ -157,10 +162,10 @@ function ActiveRequestCard({
       </button>
 
       {expanded ? (
-        <div className="space-y-3 border-t border-white/10 px-3.5 pt-3 pb-3.5">
-          <div className="grid gap-1.5 text-sm text-[#D6D3D1]">
+        <div className="space-y-2.5 border-t border-white/5 px-2.5 pt-2 pb-2.5">
+          <div className="grid gap-1 text-sm text-[#D6D3D1]">
             <p className="flex items-center gap-2">
-              <UserRound size={14} className="shrink-0 text-[#A8A29E]" />
+              <UserRound size={13} className="shrink-0 text-[#A8A29E]" />
               <span>
                 <span className="text-[#A8A29E]">From </span>
                 <strong className="font-semibold text-[#FAFAF9]">
@@ -170,7 +175,7 @@ function ActiveRequestCard({
             </p>
             {item.dedication ? (
               <p className="flex items-start gap-2 text-[13px] leading-snug">
-                <Heart size={14} className="mt-0.5 shrink-0 text-[#A8A29E]" />
+                <Heart size={13} className="mt-0.5 shrink-0 text-[#A8A29E]" />
                 <span className="break-words whitespace-normal">
                   <span className="text-[#A8A29E]">Dedication </span>
                   <span className="text-[#D6D3D1]">“{item.dedication}”</span>
@@ -178,7 +183,7 @@ function ActiveRequestCard({
               </p>
             ) : null}
             <p className="flex items-center gap-2 text-xs text-[#A8A29E]">
-              <Clock3 size={13} className="shrink-0" />
+              <Clock3 size={12} className="shrink-0" />
               {formatRequestTime(item.created_at, mounted)}
               <span className="text-[#57534E]">·</span>
               <span>
@@ -187,30 +192,30 @@ function ActiveRequestCard({
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <button
               type="button"
               disabled={updating === item.id}
               onClick={() => onUpdate(item.id, "accepted")}
-              className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-emerald-500 px-2 text-xs font-bold text-[#1C1917] transition hover:bg-emerald-400 disabled:opacity-40"
+              className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-emerald-500 px-2 text-xs font-bold text-[#1C1917] transition hover:bg-emerald-400 disabled:opacity-40"
             >
-              <Check size={14} /> Accept
+              <Check size={13} /> Accept
             </button>
             <button
               type="button"
               disabled={updating === item.id}
               onClick={() => onUpdate(item.id, "rejected")}
-              className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-white/15 px-2 text-xs font-bold text-[#FAFAF9] transition hover:bg-white/20 disabled:opacity-40"
+              className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-white/15 px-2 text-xs font-bold text-[#FAFAF9] transition hover:bg-white/20 disabled:opacity-40"
             >
-              <X size={14} /> Reject
+              <X size={13} /> Reject
             </button>
             <button
               type="button"
               disabled={updating === item.id}
               onClick={() => onUpdate(item.id, "played")}
-              className="inline-flex min-h-[40px] items-center justify-center gap-1 rounded-lg bg-[#FAFAF9] px-2 text-xs font-bold text-[#1C1917] transition hover:bg-white disabled:opacity-40"
+              className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-[#FAFAF9] px-2 text-xs font-bold text-[#1C1917] transition hover:bg-white disabled:opacity-40"
             >
-              <Music2 size={14} /> Played
+              <Music2 size={13} /> Played
             </button>
           </div>
         </div>
@@ -227,27 +232,28 @@ function HistoryRequestRow({
   mounted: boolean;
 }) {
   return (
-    <article className="rounded-lg border border-white/5 bg-[#1C1917]/70 px-3 py-2.5 opacity-80">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-[#D6D3D1]">
-            {item.song_title}
-          </p>
-          <p className="mt-0.5 truncate text-[11px] text-[#A8A29E]">
-            {item.artist} · {item.requester_name} ·{" "}
-            {formatRequestTime(item.created_at, mounted)}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
-            statusStyles[item.status],
-          )}
-        >
-          {item.status}
-        </span>
+    <div className="flex items-center gap-3 px-2.5 py-1.5">
+      <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
+        <Music2 size={14} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
+          {item.song_title}
+        </p>
+        <p className="truncate text-xs leading-snug text-[#A8A29E]">
+          {item.artist} · {item.requester_name} ·{" "}
+          {formatRequestTime(item.created_at, mounted)}
+        </p>
       </div>
-    </article>
+      <span
+        className={cn(
+          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize",
+          statusStyles[item.status],
+        )}
+      >
+        {item.status}
+      </span>
+    </div>
   );
 }
 
@@ -614,7 +620,7 @@ export function AdminDashboard({
                   </button>
                 </div>
               ) : (
-                <div className="grid gap-2">
+                <div className="overflow-hidden rounded-xl border border-white/10 divide-y divide-white/5">
                   {activeQueue.map((item) => (
                     <ActiveRequestCard
                       key={item.id}
@@ -665,13 +671,13 @@ export function AdminDashboard({
                 </button>
 
                 {historyOpen && (
-                  <div className="border-t border-white/10 px-2.5 py-2.5">
+                  <div className="border-t border-white/10">
                     {completedHistory.length === 0 ? (
-                      <p className="px-1 py-4 text-center text-xs text-[#A8A29E]">
+                      <p className="px-3 py-4 text-center text-xs text-[#A8A29E]">
                         No completed requests yet.
                       </p>
                     ) : (
-                      <div className="grid gap-1.5">
+                      <div className="divide-y divide-white/5">
                         {completedHistory.map((item) => (
                           <HistoryRequestRow
                             key={item.id}
