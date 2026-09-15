@@ -35,6 +35,7 @@ export type Setlist = {
   icon?: string | null;
   icon_color?: string | null;
   position?: number;
+  is_performing?: boolean;
   created_at?: string;
   updated_at?: string;
   song_count?: number;
@@ -45,6 +46,7 @@ export type SetlistSong = {
   setlist_id: string;
   song_id: string;
   position: number;
+  performed?: boolean;
   created_at?: string;
   song?: Song | null;
 };

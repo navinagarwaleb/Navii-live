@@ -22,15 +22,19 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeft,
+  Check,
+  ChevronDown,
   ChevronRight,
   GripVertical,
   Loader2,
   Pencil,
   Plus,
+  Radio,
   Search,
   Trash2,
   X,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   DEFAULT_SETLIST_COLOR,
@@ -53,7 +57,8 @@ import type { Performer, Setlist, SetlistSong, Song } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const SONG_SELECT = "id,title,artist,active,tags,artwork_url,performer_id,created_at";
-const SETLIST_SELECT = "id,performer_id,name,icon,icon_color,position,created_at,updated_at";
+const SETLIST_SELECT =
+  "id,performer_id,name,icon,icon_color,position,is_performing,created_at,updated_at";
 
 const SETLIST_APPEARANCE_COLUMN_HINT =
   /icon|icon_color|column .* does not exist|Could not find/i;
@@ -97,6 +102,7 @@ type SetlistSongJoinRow = {
   setlist_id: string;
   song_id: string;
   position: number;
+  performed?: boolean;
   created_at?: string;
   song?: Song | Song[] | null;
 };
@@ -108,6 +114,7 @@ function normalizeSetlistSong(row: SetlistSongJoinRow): SetlistSong {
     setlist_id: row.setlist_id,
     song_id: row.song_id,
     position: row.position,
+    performed: Boolean(row.performed),
     created_at: row.created_at,
     song,
   };
@@ -198,10 +205,12 @@ function SetlistColorPicker({
 function SortableSetlistRow({
   setlist,
   index,
+  locked,
   onOpen,
 }: {
   setlist: SetlistRow;
   index: number;
+  locked?: boolean;
   onOpen: () => void;
 }) {
   const {
@@ -211,7 +220,8 @@ function SortableSetlistRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: setlist.id });
+  } = useSortable({ id: setlist.id, disabled: locked });
+  const performing = Boolean(setlist.is_performing);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -223,7 +233,9 @@ function SortableSetlistRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 bg-[#292524] px-2.5 py-1.5",
+        "flex items-center gap-2 px-2.5 py-1.5",
+        performing ? "bg-emerald-500/10" : "bg-[#292524]",
+        locked && !performing && "opacity-40",
         index > 0 && "border-t border-white/5",
         isDragging && "z-20 rounded-xl border border-white/20 shadow-lg",
       )}
@@ -231,7 +243,8 @@ function SortableSetlistRow({
       <button
         type="button"
         aria-label={`Drag to reorder ${setlist.name}`}
-        className="grid size-9 shrink-0 touch-none place-items-center rounded-full text-[#78716C] transition hover:bg-white/10 hover:text-[#FAFAF9]"
+        disabled={locked}
+        className="grid size-9 shrink-0 touch-none place-items-center rounded-full text-[#78716C] transition hover:bg-white/10 hover:text-[#FAFAF9] disabled:pointer-events-none disabled:opacity-40"
         {...attributes}
         {...listeners}
       >
@@ -239,13 +252,26 @@ function SortableSetlistRow({
       </button>
       <button
         type="button"
+        disabled={locked && !performing}
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-90"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-90 disabled:pointer-events-none"
       >
         <SetlistIconBadge icon={setlist.icon} color={setlist.icon_color} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
-            {setlist.name}
+          <span className="flex items-center gap-2">
+            <span className="block truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
+              {setlist.name}
+            </span>
+            {performing ? (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-emerald-200 uppercase">
+                <Radio size={10} className="animate-pulse" />
+                Live
+              </span>
+            ) : locked ? (
+              <span className="shrink-0 text-[10px] font-semibold text-[#78716C]">
+                Locked
+              </span>
+            ) : null}
           </span>
           <span className="block truncate text-xs leading-snug text-[#A8A29E]">
             {setlist.song_count} song
@@ -262,14 +288,26 @@ function SortableSetlistSongRow({
   entry,
   index,
   removing,
+  performing,
+  skipped,
+  dragDisabled,
+  togglingPerformed,
   onRemove,
+  onTogglePerformed,
 }: {
   entry: SetlistSong;
   index: number;
   removing: boolean;
+  performing: boolean;
+  skipped?: boolean;
+  dragDisabled?: boolean;
+  togglingPerformed: boolean;
   onRemove: () => void;
+  onTogglePerformed: () => void;
 }) {
   const song = entry.song;
+  const performed = Boolean(entry.performed);
+  const settled = performed || Boolean(skipped);
   const {
     attributes,
     listeners,
@@ -277,7 +315,7 @@ function SortableSetlistSongRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: entry.id });
+  } = useSortable({ id: entry.id, disabled: dragDisabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -289,15 +327,17 @@ function SortableSetlistSongRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-3 bg-[#292524] px-2.5 py-1.5",
+        "flex w-full min-w-0 items-center gap-2 bg-[#292524] px-2 py-1.5 sm:gap-3 sm:px-2.5",
         index > 0 && "border-t border-white/5",
         isDragging && "z-20 rounded-xl border border-white/20 shadow-lg",
+        settled && "opacity-45",
       )}
     >
       <button
         type="button"
         aria-label={`Drag to reorder ${song?.title ?? "song"}`}
-        className="grid size-9 shrink-0 touch-none place-items-center rounded-full text-[#78716C] transition hover:bg-white/10 hover:text-[#FAFAF9]"
+        disabled={dragDisabled}
+        className="grid size-9 shrink-0 touch-none place-items-center rounded-full text-[#78716C] transition hover:bg-white/10 hover:text-[#FAFAF9] disabled:pointer-events-none disabled:opacity-30"
         {...attributes}
         {...listeners}
       >
@@ -308,40 +348,98 @@ function SortableSetlistSongRow({
         <img
           src={song.artwork_url}
           alt=""
-          width={44}
-          height={44}
+          width={40}
+          height={40}
           className={cn(
-            "size-11 shrink-0 rounded-md object-cover",
-            !(song.active ?? true) && "opacity-45 grayscale",
+            "size-10 shrink-0 rounded-md object-cover sm:size-11",
+            (settled || !(song.active ?? true)) && "grayscale",
           )}
         />
       ) : (
-        <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
+        <span className="grid size-10 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E] sm:size-11">
           <Search size={14} />
         </span>
       )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <p
+          className={cn(
+            "truncate text-sm font-semibold leading-snug text-[#FAFAF9]",
+            settled && "line-through decoration-white/40",
+          )}
+        >
           {song?.title ?? "Unknown song"}
         </p>
         <p className="truncate text-xs leading-snug text-[#A8A29E]">
           {song?.artist ?? "—"}
-          {song && !(song.active ?? true) ? " · hidden from requests" : ""}
+          {skipped ? " · skipped" : performed ? " · performed" : ""}
+          {!settled && song && !(song.active ?? true)
+            ? " · hidden from requests"
+            : ""}
         </p>
       </div>
-      <button
-        type="button"
-        aria-label={`Remove ${song?.title ?? "song"} from setlist`}
-        disabled={removing}
-        onClick={onRemove}
-        className="grid size-9 place-items-center rounded-full text-[#A8A29E] transition hover:bg-white/10 hover:text-red-200"
-      >
-        {removing ? (
-          <Loader2 size={15} className="animate-spin" />
-        ) : (
-          <Trash2 size={15} />
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+        {performing ? (
+          skipped ? (
+            <button
+              type="button"
+              aria-label={`Restore ${song?.title ?? "song"} to the set`}
+              aria-pressed
+              disabled={removing}
+              onClick={onRemove}
+              className="grid size-9 shrink-0 place-items-center rounded-full border border-red-400/40 bg-red-500/20 text-red-200 transition disabled:opacity-40"
+            >
+              {removing ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <X size={15} />
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label={
+                performed
+                  ? `Mark ${song?.title ?? "song"} as not performed`
+                  : `Mark ${song?.title ?? "song"} as performed`
+              }
+              aria-pressed={performed}
+              disabled={togglingPerformed}
+              onClick={onTogglePerformed}
+              className={cn(
+                "grid size-9 shrink-0 place-items-center rounded-full border transition disabled:opacity-40",
+                performed
+                  ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
+                  : "border-white/15 text-[#A8A29E] hover:bg-white/10 hover:text-[#FAFAF9]",
+              )}
+            >
+              {togglingPerformed ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Check size={15} />
+              )}
+            </button>
+          )
+        ) : null}
+        {performing && skipped ? null : (
+          <button
+            type="button"
+            aria-label={
+              performing
+                ? `Cut ${song?.title ?? "song"} for this performance`
+                : `Remove ${song?.title ?? "song"} from setlist`
+            }
+            disabled={removing}
+            onClick={onRemove}
+            className="grid size-9 shrink-0 place-items-center rounded-full text-[#A8A29E] transition hover:bg-white/10 hover:text-red-200"
+          >
+            {removing ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Trash2 size={15} />
+            )}
+          </button>
         )}
-      </button>
+      </div>
     </div>
   );
 }
@@ -374,8 +472,25 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
   const [deletingSetlist, setDeletingSetlist] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRemoveEntry, setConfirmRemoveEntry] =
+    useState<SetlistSong | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
   const [savingSetlistOrder, setSavingSetlistOrder] = useState(false);
+  const [savingPerforming, setSavingPerforming] = useState(false);
+  const [togglingPerformedId, setTogglingPerformedId] = useState<string | null>(
+    null,
+  );
+  const [confirmStartPerformance, setConfirmStartPerformance] = useState(false);
+  const [confirmStopPerformance, setConfirmStopPerformance] = useState(false);
+  const [sessionSkippedEntryIds, setSessionSkippedEntryIds] = useState<
+    string[]
+  >([]);
+  const [sessionSettledOrder, setSessionSettledOrder] = useState<string[]>([]);
+  const [sessionPendingOrder, setSessionPendingOrder] = useState<string[]>([]);
+  const [sessionAddedEntries, setSessionAddedEntries] = useState<SetlistSong[]>(
+    [],
+  );
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -392,9 +507,116 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     [activeSetlistId, setlists],
   );
 
+  const liveSetlistId = useMemo(
+    () => setlists.find((item) => item.is_performing)?.id ?? null,
+    [setlists],
+  );
+
+  const displaySetlists = useMemo(() => {
+    if (!liveSetlistId) return setlists;
+    const live = setlists.filter((item) => item.id === liveSetlistId);
+    const rest = setlists.filter((item) => item.id !== liveSetlistId);
+    return [...live, ...rest];
+  }, [liveSetlistId, setlists]);
+
+  const sessionSkipped = useMemo(
+    () => new Set(sessionSkippedEntryIds),
+    [sessionSkippedEntryIds],
+  );
+
+  const sessionAddedIds = useMemo(
+    () => new Set(sessionAddedEntries.map((entry) => entry.id)),
+    [sessionAddedEntries],
+  );
+
+  const allEntries = useMemo(
+    () => [...entries, ...sessionAddedEntries],
+    [entries, sessionAddedEntries],
+  );
+
+  const historyEntries = useMemo(() => {
+    if (!activeSetlist?.is_performing) return [];
+    const byId = new Map(allEntries.map((entry) => [entry.id, entry]));
+    const isSettled = (entry: SetlistSong) =>
+      Boolean(entry.performed) || sessionSkipped.has(entry.id);
+
+    const settledIds = [
+      ...sessionSettledOrder.filter((id) => {
+        const entry = byId.get(id);
+        return entry ? isSettled(entry) : false;
+      }),
+      ...allEntries
+        .filter(
+          (entry) =>
+            isSettled(entry) && !sessionSettledOrder.includes(entry.id),
+        )
+        .map((entry) => entry.id),
+    ];
+
+    return settledIds
+      .map((id) => byId.get(id))
+      .filter((entry): entry is SetlistSong => Boolean(entry));
+  }, [
+    activeSetlist?.is_performing,
+    allEntries,
+    sessionSettledOrder,
+    sessionSkipped,
+  ]);
+
+  const lastActionedEntry =
+    historyEntries.length > 0
+      ? historyEntries[historyEntries.length - 1]
+      : null;
+
+  const olderHistoryEntries = useMemo(
+    () => historyEntries.slice(0, -1),
+    [historyEntries],
+  );
+
+  const pendingEntries = useMemo(() => {
+    if (!activeSetlist?.is_performing) return allEntries;
+    const isSettled = (entry: SetlistSong) =>
+      Boolean(entry.performed) || sessionSkipped.has(entry.id);
+    const pending = [
+      ...sessionAddedEntries.filter((entry) => !isSettled(entry)),
+      ...entries.filter((entry) => !isSettled(entry)),
+    ];
+    const byId = new Map(pending.map((entry) => [entry.id, entry]));
+    const ordered = sessionPendingOrder
+      .map((id) => byId.get(id))
+      .filter((entry): entry is SetlistSong => Boolean(entry));
+    const orderedIds = new Set(ordered.map((entry) => entry.id));
+    const extras = pending.filter((entry) => !orderedIds.has(entry.id));
+    return [...extras, ...ordered];
+  }, [
+    activeSetlist?.is_performing,
+    allEntries,
+    entries,
+    sessionAddedEntries,
+    sessionPendingOrder,
+    sessionSkipped,
+  ]);
+
+  const visibleEntries = useMemo(
+    () =>
+      activeSetlist?.is_performing
+        ? [...pendingEntries, ...historyEntries]
+        : allEntries,
+    [
+      activeSetlist?.is_performing,
+      allEntries,
+      historyEntries,
+      pendingEntries,
+    ],
+  );
+
   const memberSongIds = useMemo(
-    () => new Set(entries.map((entry) => entry.song_id)),
-    [entries],
+    () =>
+      new Set([
+        ...entries.map((entry) => entry.song_id),
+        ...sessionAddedEntries.map((entry) => entry.song_id),
+      ]),
+    [entries, sessionAddedEntries],
   );
 
   const availableSongs = useMemo(() => {
@@ -442,7 +664,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
           /position|column .* does not exist|Could not find/i.test(
             setlistsResult.error.message ?? "",
           )
-            ? "Setlist position column is missing. Run migration 20260914_setlists_position.sql, then reload."
+            ? "Setlist columns are missing. Run migrations 20260914_setlists_position.sql and 20260914_setlists_performance.sql, then reload."
             : /relation .*setlists.* does not exist|Could not find/i.test(
                   setlistsResult.error.message ?? "",
                 )
@@ -476,6 +698,25 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     })();
   }, [performer.id, supabase]);
 
+  function settleEntry(entryId: string) {
+    setSessionSettledOrder((current) => [
+      ...current.filter((id) => id !== entryId),
+      entryId,
+    ]);
+    setSessionPendingOrder((current) =>
+      current.filter((id) => id !== entryId),
+    );
+  }
+
+  function unsettleEntry(entryId: string) {
+    setSessionSettledOrder((current) =>
+      current.filter((id) => id !== entryId),
+    );
+    setSessionPendingOrder((current) =>
+      current.includes(entryId) ? current : [entryId, ...current],
+    );
+  }
+
   async function openSetlist(setlist: SetlistRow) {
     if (!supabase) return;
     setActiveSetlistId(setlist.id);
@@ -485,13 +726,21 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     setPickerOpen(false);
     setPickerQuery("");
     setConfirmDelete(false);
+    setConfirmRemoveEntry(null);
+    setConfirmStartPerformance(false);
+    setConfirmStopPerformance(false);
+    setSessionSkippedEntryIds([]);
+    setSessionSettledOrder([]);
+    setSessionPendingOrder([]);
+    setSessionAddedEntries([]);
+    setHistoryOpen(false);
     setLoadingEntries(true);
     setError("");
 
     const { data, error: loadError } = await supabase
       .from("setlist_songs")
       .select(
-        `id,setlist_id,song_id,position,created_at,song:songs(${SONG_SELECT})`,
+        `id,setlist_id,song_id,position,performed,created_at,song:songs(${SONG_SELECT})`,
       )
       .eq("setlist_id", setlist.id)
       .order("position", { ascending: true })
@@ -501,7 +750,18 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
       setError(loadError.message);
       setEntries([]);
     } else {
-      setEntries(((data as SetlistSongJoinRow[]) ?? []).map(normalizeSetlistSong));
+      const loaded = ((data as SetlistSongJoinRow[]) ?? []).map(
+        normalizeSetlistSong,
+      );
+      setEntries(loaded);
+      if (setlist.is_performing) {
+        setSessionSettledOrder(
+          loaded.filter((entry) => entry.performed).map((entry) => entry.id),
+        );
+        setSessionPendingOrder(
+          loaded.filter((entry) => !entry.performed).map((entry) => entry.id),
+        );
+      }
     }
     setLoadingEntries(false);
   }
@@ -658,18 +918,40 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     setAddingSongId(song.id);
     setError("");
 
-    const nextPosition =
-      entries.reduce((max, entry) => Math.max(max, entry.position), -1) + 1;
+    // Live session: add for this performance only — keep the original setlist intact.
+    if (activeSetlist.is_performing) {
+      const nextPosition =
+        Math.max(
+          entries.reduce((max, entry) => Math.max(max, entry.position), -1),
+          sessionAddedEntries.reduce(
+            (max, entry) => Math.max(max, entry.position),
+            -1,
+          ),
+        ) + 1;
+      const entry: SetlistSong = {
+        id: `session-${song.id}-${crypto.randomUUID()}`,
+        setlist_id: activeSetlist.id,
+        song_id: song.id,
+        position: nextPosition,
+        performed: false,
+        created_at: new Date().toISOString(),
+        song,
+      };
+      setSessionAddedEntries((current) => [entry, ...current]);
+      setSessionPendingOrder((current) => [entry.id, ...current]);
+      setAddingSongId(null);
+      return;
+    }
 
     const { data, error: insertError } = await supabase
       .from("setlist_songs")
       .insert({
         setlist_id: activeSetlist.id,
         song_id: song.id,
-        position: nextPosition,
+        position: 0,
       })
       .select(
-        `id,setlist_id,song_id,position,created_at,song:songs(${SONG_SELECT})`,
+        `id,setlist_id,song_id,position,performed,created_at,song:songs(${SONG_SELECT})`,
       )
       .single();
 
@@ -684,7 +966,11 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     }
 
     const entry = normalizeSetlistSong(data as SetlistSongJoinRow);
-    setEntries((current) => [...current, entry]);
+    const nextEntries = [
+      { ...entry, position: 0 },
+      ...entries.map((item, index) => ({ ...item, position: index + 1 })),
+    ];
+    setEntries(nextEntries);
     setSetlists((current) =>
       current.map((item) =>
         item.id === activeSetlist.id
@@ -696,13 +982,58 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
           : item,
       ),
     );
-    await touchSetlist(activeSetlist.id);
+    await persistEntryOrder(nextEntries);
     setAddingSongId(null);
     setMessage(`Added “${song.title}”.`);
   }
 
   async function removeSongFromSetlist(entry: SetlistSong) {
     if (!supabase || !activeSetlist) return;
+
+    // Live session: cut for tonight only — keep the original setlist intact.
+    if (activeSetlist.is_performing) {
+      if (sessionSkipped.has(entry.id)) {
+        setSessionSkippedEntryIds((current) =>
+          current.filter((id) => id !== entry.id),
+        );
+        unsettleEntry(entry.id);
+        return;
+      }
+
+      if (entry.performed) {
+        if (sessionAddedIds.has(entry.id)) {
+          setSessionAddedEntries((current) =>
+            current.map((item) =>
+              item.id === entry.id ? { ...item, performed: false } : item,
+            ),
+          );
+        } else {
+          const { error: updateError } = await supabase
+            .from("setlist_songs")
+            .update({ performed: false })
+            .eq("id", entry.id)
+            .eq("setlist_id", activeSetlist.id);
+          if (updateError) {
+            setError(
+              performanceColumnError(updateError.message) || updateError.message,
+            );
+            return;
+          }
+          setEntries((current) =>
+            current.map((item) =>
+              item.id === entry.id ? { ...item, performed: false } : item,
+            ),
+          );
+        }
+      }
+
+      setSessionSkippedEntryIds((current) =>
+        current.includes(entry.id) ? current : [...current, entry.id],
+      );
+      settleEntry(entry.id);
+      return;
+    }
+
     setRemovingEntryId(entry.id);
     setError("");
 
@@ -732,9 +1063,18 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     );
     await touchSetlist(activeSetlist.id);
     setRemovingEntryId(null);
+    setConfirmRemoveEntry(null);
     setMessage(
       `Removed “${entry.song?.title ?? "song"}” from this setlist.`,
     );
+  }
+
+  function requestRemoveSong(entry: SetlistSong) {
+    if (activeSetlist?.is_performing) {
+      void removeSongFromSetlist(entry);
+      return;
+    }
+    setConfirmRemoveEntry(entry);
   }
 
   async function persistEntryOrder(nextEntries: SetlistSong[]) {
@@ -807,6 +1147,18 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     await persistEntryOrder(reordered);
   }
 
+  function onPendingDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const ids = pendingEntries.map((entry) => entry.id);
+    const oldIndex = ids.findIndex((id) => id === active.id);
+    const newIndex = ids.findIndex((id) => id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    setSessionPendingOrder(arrayMove(ids, oldIndex, newIndex));
+  }
+
   async function onSetlistDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -820,6 +1172,158 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     );
     setSetlists(reordered);
     await persistSetlistOrder(reordered);
+  }
+
+  function performanceColumnError(message: string | undefined) {
+    if (/is_performing|performed|column .* does not exist|Could not find/i.test(message ?? "")) {
+      return "Performance columns are missing. Run migration 20260914_setlists_performance.sql, then try again.";
+    }
+    return message ?? "";
+  }
+
+  async function setPerforming(next: boolean) {
+    if (!supabase || !activeSetlist) return;
+    setSavingPerforming(true);
+    setError("");
+
+    if (next) {
+      const { error: clearError } = await supabase
+        .from("setlists")
+        .update({
+          is_performing: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("performer_id", performer.id)
+        .eq("is_performing", true);
+
+      if (clearError) {
+        setError(performanceColumnError(clearError.message) || clearError.message);
+        setSavingPerforming(false);
+        setConfirmStartPerformance(false);
+        return;
+      }
+    }
+
+    const { data, error: updateError } = await supabase
+      .from("setlists")
+      .update({
+        is_performing: next,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", activeSetlist.id)
+      .eq("performer_id", performer.id)
+      .select(SETLIST_SELECT)
+      .single();
+
+    if (updateError) {
+      setError(performanceColumnError(updateError.message) || updateError.message);
+      setSavingPerforming(false);
+      setConfirmStartPerformance(false);
+      setConfirmStopPerformance(false);
+      return;
+    }
+
+    const updated = data as Setlist;
+    setSetlists((current) =>
+      current.map((item) => {
+        if (item.id === updated.id) {
+          return { ...item, ...updated, song_count: item.song_count };
+        }
+        if (next) {
+          return { ...item, is_performing: false };
+        }
+        return item;
+      }),
+    );
+
+    if (!next) {
+      const { error: clearPerformedError } = await supabase
+        .from("setlist_songs")
+        .update({ performed: false })
+        .eq("setlist_id", activeSetlist.id)
+        .eq("performed", true);
+      if (clearPerformedError) {
+        setError(
+          performanceColumnError(clearPerformedError.message) ||
+            clearPerformedError.message,
+        );
+        setSavingPerforming(false);
+        setConfirmStopPerformance(false);
+        return;
+      }
+      setEntries((current) =>
+        current.map((item) => ({ ...item, performed: false })),
+      );
+    }
+
+    setSessionSkippedEntryIds([]);
+    setSessionAddedEntries([]);
+    setHistoryOpen(false);
+    setSessionSettledOrder(
+      next
+        ? entries.filter((entry) => entry.performed).map((entry) => entry.id)
+        : [],
+    );
+    setSessionPendingOrder(
+      next
+        ? entries.filter((entry) => !entry.performed).map((entry) => entry.id)
+        : [],
+    );
+    setSavingPerforming(false);
+    setConfirmStartPerformance(false);
+    setConfirmStopPerformance(false);
+    if (next) {
+      setPickerOpen(false);
+      setPickingIcon(false);
+      setRenaming(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  async function togglePerformed(entry: SetlistSong) {
+    if (!supabase || !activeSetlist) return;
+    const next = !entry.performed;
+    setTogglingPerformedId(entry.id);
+    setError("");
+
+    if (sessionSkipped.has(entry.id)) {
+      setSessionSkippedEntryIds((current) =>
+        current.filter((id) => id !== entry.id),
+      );
+    }
+
+    if (sessionAddedIds.has(entry.id)) {
+      setSessionAddedEntries((current) =>
+        current.map((item) =>
+          item.id === entry.id ? { ...item, performed: next } : item,
+        ),
+      );
+      if (next) settleEntry(entry.id);
+      else unsettleEntry(entry.id);
+      setTogglingPerformedId(null);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("setlist_songs")
+      .update({ performed: next })
+      .eq("id", entry.id)
+      .eq("setlist_id", activeSetlist.id);
+
+    if (updateError) {
+      setError(performanceColumnError(updateError.message) || updateError.message);
+      setTogglingPerformedId(null);
+      return;
+    }
+
+    setEntries((current) =>
+      current.map((item) =>
+        item.id === entry.id ? { ...item, performed: next } : item,
+      ),
+    );
+    if (next) settleEntry(entry.id);
+    else unsettleEntry(entry.id);
+    setTogglingPerformedId(null);
   }
 
   async function deleteSetlist() {
@@ -960,8 +1464,9 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                     Add from your list
                   </p>
                   <p className="mt-1 text-sm text-[#A8A29E]">
-                    Every song in your list is available here, including hidden
-                    ones. Songs already in this setlist are omitted.
+                    {activeSetlist.is_performing
+                      ? "Adds during a live session are temporary and won’t change your original setlist."
+                      : "Every song in your list is available here, including hidden ones. Songs already in this setlist are omitted."}
                   </p>
                 </div>
                 <button
@@ -1063,14 +1568,20 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
 
   if (activeSetlist) {
     return (
-      <div className="grid gap-2.5">
+      <div className="grid min-w-0 gap-2.5 overflow-x-clip">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => {
               setActiveSetlistId(null);
               setEntries([]);
+              setSessionSkippedEntryIds([]);
+              setSessionSettledOrder([]);
+              setSessionPendingOrder([]);
+              setSessionAddedEntries([]);
+              setHistoryOpen(false);
               setConfirmDelete(false);
+              setConfirmRemoveEntry(null);
               setRenaming(false);
               setPickingIcon(false);
             }}
@@ -1118,8 +1629,9 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                 type="button"
                 aria-label="Change setlist icon and color"
                 aria-expanded={pickingIcon}
-                disabled={savingIcon}
+                disabled={savingIcon || Boolean(activeSetlist.is_performing)}
                 onClick={() => {
+                  if (activeSetlist.is_performing) return;
                   if (pickingIcon) {
                     cancelAppearanceEdit();
                   } else {
@@ -1139,25 +1651,67 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                   {activeSetlist.name}
                 </h2>
                 <p className="truncate text-[11px] text-[#A8A29E]">
-                  {entries.length} song{entries.length === 1 ? "" : "s"}
-                  {savingOrder ? " · saving…" : " · drag to reorder"}
+                  {visibleEntries.length} song
+                  {visibleEntries.length === 1 ? "" : "s"}
+                  {sessionSkippedEntryIds.length > 0
+                    ? ` · ${sessionSkippedEntryIds.length} skipped tonight`
+                    : ""}
+                  {sessionAddedEntries.length > 0
+                    ? ` · ${sessionAddedEntries.length} added tonight`
+                    : ""}
+                  {activeSetlist.is_performing
+                    ? ` · ${historyEntries.length} actioned · drag to reorder tonight`
+                    : savingOrder
+                      ? " · saving…"
+                      : " · drag to reorder"}
                 </p>
               </div>
               <button
                 type="button"
                 aria-label="Rename setlist"
+                disabled={Boolean(activeSetlist.is_performing)}
                 onClick={() => setRenaming(true)}
-                className="grid size-9 shrink-0 place-items-center rounded-full border border-white/10 text-[#A8A29E] transition hover:bg-white/10 hover:text-[#FAFAF9]"
+                className="grid size-9 shrink-0 place-items-center rounded-full border border-white/10 text-[#A8A29E] transition hover:bg-white/10 hover:text-[#FAFAF9] disabled:opacity-40"
               >
                 <Pencil size={14} />
               </button>
               <button
                 type="button"
                 aria-label="Delete setlist"
+                disabled={Boolean(activeSetlist.is_performing)}
                 onClick={() => setConfirmDelete(true)}
-                className="grid size-9 shrink-0 place-items-center rounded-full border border-red-400/30 text-red-200 transition hover:bg-red-500/15"
+                className="grid size-9 shrink-0 place-items-center rounded-full border border-red-400/30 text-red-200 transition hover:bg-red-500/15 disabled:opacity-40"
               >
                 <Trash2 size={14} />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={savingPerforming}
+                onClick={() => {
+                  if (activeSetlist.is_performing) {
+                    setConfirmStopPerformance(true);
+                  } else {
+                    setConfirmStartPerformance(true);
+                  }
+                }}
+                className={cn(
+                  "inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold leading-none transition disabled:opacity-40",
+                  activeSetlist.is_performing
+                    ? "border border-red-400/35 bg-red-500/10 text-red-200"
+                    : "border border-emerald-400/35 bg-emerald-500/10 text-emerald-200",
+                )}
+              >
+                {savingPerforming ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Radio size={14} />
+                )}
+                {activeSetlist.is_performing
+                  ? "Stop performing"
+                  : "Start performing"}
               </button>
             </div>
 
@@ -1171,7 +1725,9 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
             >
               <Search size={15} className="shrink-0 text-[#A8A29E]" />
               <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-none text-[#A8A29E]">
-                Add songs from your list…
+                {activeSetlist.is_performing
+                  ? "Add songs for tonight…"
+                  : "Add songs from your list…"}
               </span>
               <Plus size={14} className="shrink-0 text-[#78716C]" />
             </button>
@@ -1263,7 +1819,123 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
             <Loader2 size={16} className="animate-spin" />
             Loading songs…
           </div>
-        ) : entries.length === 0 ? (
+        ) : activeSetlist.is_performing ? (
+          <div className="grid min-w-0 gap-2.5 overflow-x-clip">
+            <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#292524]">
+              <button
+                type="button"
+                aria-expanded={historyOpen}
+                onClick={() => setHistoryOpen((open) => !open)}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-white/5"
+              >
+                {historyOpen ? (
+                  <ChevronDown size={14} className="shrink-0 text-[#A8A29E]" />
+                ) : (
+                  <ChevronRight size={14} className="shrink-0 text-[#A8A29E]" />
+                )}
+                <span className="text-xs font-semibold text-[#FAFAF9]">
+                  History
+                </span>
+                <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-[#A8A29E]">
+                  {historyEntries.length}
+                </span>
+              </button>
+              {lastActionedEntry ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={() => undefined}
+                >
+                  <SortableContext
+                    items={[
+                      ...(historyOpen
+                        ? olderHistoryEntries.map((entry) => entry.id)
+                        : []),
+                      lastActionedEntry.id,
+                    ]}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {historyOpen
+                      ? olderHistoryEntries.map((entry, index) => (
+                          <SortableSetlistSongRow
+                            key={entry.id}
+                            entry={entry}
+                            index={index + 1}
+                            removing={removingEntryId === entry.id}
+                            performing
+                            skipped={sessionSkipped.has(entry.id)}
+                            dragDisabled
+                            togglingPerformed={togglingPerformedId === entry.id}
+                            onRemove={() => void removeSongFromSetlist(entry)}
+                            onTogglePerformed={() => void togglePerformed(entry)}
+                          />
+                        ))
+                      : null}
+                    <SortableSetlistSongRow
+                      entry={lastActionedEntry}
+                      index={
+                        historyOpen ? olderHistoryEntries.length + 1 : 1
+                      }
+                      removing={removingEntryId === lastActionedEntry.id}
+                      performing
+                      skipped={sessionSkipped.has(lastActionedEntry.id)}
+                      dragDisabled
+                      togglingPerformed={
+                        togglingPerformedId === lastActionedEntry.id
+                      }
+                      onRemove={() =>
+                        void removeSongFromSetlist(lastActionedEntry)
+                      }
+                      onTogglePerformed={() =>
+                        void togglePerformed(lastActionedEntry)
+                      }
+                    />
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <div className="border-t border-white/5 px-3 py-2.5 text-xs text-[#78716C]">
+                  No songs actioned yet
+                </div>
+              )}
+            </div>
+
+            {pendingEntries.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/15 px-5 py-10 text-center text-sm text-[#A8A29E]">
+                {allEntries.length === 0
+                  ? "Empty setlist. Add songs for tonight to get going."
+                  : "All songs are in history. Add more for tonight if you need them."}
+              </div>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={onPendingDragEnd}
+              >
+                <SortableContext
+                  items={pendingEntries.map((entry) => entry.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#292524]">
+                    {pendingEntries.map((entry, index) => (
+                      <SortableSetlistSongRow
+                        key={entry.id}
+                        entry={entry}
+                        index={index}
+                        removing={removingEntryId === entry.id}
+                        performing
+                        skipped={sessionSkipped.has(entry.id)}
+                        dragDisabled={false}
+                        togglingPerformed={togglingPerformedId === entry.id}
+                        onRemove={() => void removeSongFromSetlist(entry)}
+                        onTogglePerformed={() => void togglePerformed(entry)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+          </div>
+        ) : visibleEntries.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 px-5 py-10 text-center text-sm text-[#A8A29E]">
             Empty setlist. Add songs from your list to get ready for the gig.
           </div>
@@ -1271,20 +1943,27 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragEnd={(event) => void onEntryDragEnd(event)}
+            onDragEnd={(event) => {
+              void onEntryDragEnd(event);
+            }}
           >
             <SortableContext
-              items={entries.map((entry) => entry.id)}
+              items={visibleEntries.map((entry) => entry.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="overflow-hidden rounded-xl border border-white/10 bg-[#292524]">
-                {entries.map((entry, index) => (
+                {visibleEntries.map((entry, index) => (
                   <SortableSetlistSongRow
                     key={entry.id}
                     entry={entry}
                     index={index}
                     removing={removingEntryId === entry.id}
-                    onRemove={() => void removeSongFromSetlist(entry)}
+                    performing={false}
+                    skipped={false}
+                    dragDisabled={false}
+                    togglingPerformed={togglingPerformedId === entry.id}
+                    onRemove={() => requestRemoveSong(entry)}
+                    onTogglePerformed={() => void togglePerformed(entry)}
                   />
                 ))}
               </div>
@@ -1294,6 +1973,53 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
 
         {createModal}
         {pickerModal}
+
+        <ConfirmDialog
+          open={Boolean(confirmRemoveEntry)}
+          title="Remove song?"
+          description={
+            confirmRemoveEntry
+              ? `Remove “${confirmRemoveEntry.song?.title ?? "this song"}” from this setlist? The song stays in your list.`
+              : undefined
+          }
+          confirmLabel="Remove"
+          cancelLabel="Keep"
+          tone="danger"
+          busy={removingEntryId === confirmRemoveEntry?.id}
+          onCancel={() => {
+            if (!removingEntryId) setConfirmRemoveEntry(null);
+          }}
+          onConfirm={() => {
+            if (confirmRemoveEntry) void removeSongFromSetlist(confirmRemoveEntry);
+          }}
+        />
+
+        <ConfirmDialog
+          open={confirmStartPerformance}
+          title="Starting Performance mode"
+          description="Any song addition or removals during this session are temporary and will not modify your original setlist. Click 'Stop performing' when finished to restore everything."
+          confirmLabel="Start performing"
+          cancelLabel="Cancel"
+          busy={savingPerforming}
+          onCancel={() => {
+            if (!savingPerforming) setConfirmStartPerformance(false);
+          }}
+          onConfirm={() => void setPerforming(true)}
+        />
+
+        <ConfirmDialog
+          open={confirmStopPerformance}
+          title="Stop performing?"
+          description="Are you sure you want to stop performing? This will end the live session, discard temporary song additions, and restore any songs you cut tonight."
+          confirmLabel="Stop performing"
+          cancelLabel="Keep performing"
+          tone="danger"
+          busy={savingPerforming}
+          onCancel={() => {
+            if (!savingPerforming) setConfirmStopPerformance(false);
+          }}
+          onConfirm={() => void setPerforming(false)}
+        />
       </div>
     );
   }
@@ -1306,19 +2032,21 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
             Setlists
           </h2>
           <p className="mt-0.5 text-sm text-[#A8A29E]">
-            Create setlists for each gig from your song list. Drag to reorder
-            {savingSetlistOrder ? " · saving…" : ""}.
+            {liveSetlistId
+              ? "A setlist is live — others are locked until you stop performing."
+              : `Create setlists for each gig from your song list. Drag to reorder${savingSetlistOrder ? " · saving…" : ""}.`}
           </p>
         </div>
         <button
           type="button"
+          disabled={Boolean(liveSetlistId)}
           onClick={() => {
             setNewName("");
             setNewIcon(DEFAULT_SETLIST_ICON);
             setNewColor(DEFAULT_SETLIST_COLOR);
             setCreating(true);
           }}
-          className={adminPrimaryChipClass()}
+          className={adminPrimaryChipClass(liveSetlistId ? "opacity-40" : undefined)}
         >
           <Plus size={14} />
           New setlist
@@ -1360,18 +2088,25 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragEnd={(event) => void onSetlistDragEnd(event)}
+            onDragEnd={(event) => {
+              if (liveSetlistId) return;
+              void onSetlistDragEnd(event);
+            }}
           >
             <SortableContext
-              items={setlists.map((setlist) => setlist.id)}
+              items={displaySetlists.map((setlist) => setlist.id)}
               strategy={verticalListSortingStrategy}
             >
-              {setlists.map((setlist, index) => (
+              {displaySetlists.map((setlist, index) => (
                 <SortableSetlistRow
                   key={setlist.id}
                   setlist={setlist}
                   index={index}
-                  onOpen={() => void openSetlist(setlist)}
+                  locked={Boolean(liveSetlistId)}
+                  onOpen={() => {
+                    if (liveSetlistId && setlist.id !== liveSetlistId) return;
+                    void openSetlist(setlist);
+                  }}
                 />
               ))}
             </SortableContext>

@@ -7,6 +7,7 @@ create table if not exists public.setlists (
   icon text not null default 'list-music',
   icon_color text not null default 'sand',
   position integer not null default 0,
+  is_performing boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -16,6 +17,7 @@ create table if not exists public.setlist_songs (
   setlist_id uuid not null references public.setlists(id) on delete cascade,
   song_id uuid not null references public.songs(id) on delete cascade,
   position integer not null default 0,
+  performed boolean not null default false,
   created_at timestamptz not null default now(),
   unique (setlist_id, song_id)
 );
@@ -23,6 +25,10 @@ create table if not exists public.setlist_songs (
 create index if not exists idx_setlists_performer on public.setlists(performer_id);
 create index if not exists idx_setlist_songs_setlist on public.setlist_songs(setlist_id);
 create index if not exists idx_setlist_songs_song on public.setlist_songs(song_id);
+
+create unique index if not exists idx_setlists_one_performing
+  on public.setlists (performer_id)
+  where is_performing = true;
 
 alter table public.setlists enable row level security;
 alter table public.setlist_songs enable row level security;
