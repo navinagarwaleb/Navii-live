@@ -28,6 +28,8 @@ import {
   normalizeCustomTags,
   normalizeTags,
 } from "@/lib/tags";
+import { useEphemeralMessage } from "@/hooks/use-ephemeral-message";
+import { adminChipClass } from "@/lib/admin-ui";
 import type { Performer } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -88,10 +90,14 @@ export function AdminProfileForm({
   performer,
   onSaved,
   initialOpenSection,
+  backHref = "/admin",
+  backLabel = "Back to dashboard",
 }: {
   performer: Performer;
   onSaved?: (next: Performer) => void;
   initialOpenSection?: "profile" | "social" | "tags" | null;
+  backHref?: string;
+  backLabel?: string;
 }) {
   const [openSection, setOpenSection] = useState<
     "profile" | "social" | "tags" | null
@@ -115,9 +121,9 @@ export function AdminProfileForm({
   const [tagsStatus, setTagsStatus] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
   );
-  const [profileMessage, setProfileMessage] = useState("");
+  const [profileMessage, setProfileMessage] = useEphemeralMessage();
   const [profileError, setProfileError] = useState("");
-  const [socialMessage, setSocialMessage] = useState("");
+  const [socialMessage, setSocialMessage] = useEphemeralMessage();
   const [socialError, setSocialError] = useState("");
   const [tagsError, setTagsError] = useState("");
   const [portalReady, setPortalReady] = useState(false);
@@ -357,7 +363,7 @@ export function AdminProfileForm({
     portalReady && pendingRemoveTag
       ? createPortal(
           <div
-            className="fixed inset-0 z-[100] grid place-items-end bg-black/55 p-4 sm:place-items-center"
+            className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="remove-tag-title"
@@ -584,26 +590,26 @@ export function AdminProfileForm({
         title="Custom tags"
         summary={
           openSection === "tags"
-            ? `Up to ${MAX_CUSTOM_TAGS} labels (maximum ${MAX_TAG_CHARS} chars each) you can apply when editing songs.`
+            ? "Guest request filters for your songs"
             : tagCount > 0
               ? `${tagCount} tag${tagCount === 1 ? "" : "s"} · tap to manage`
-              : "Tap to add labels for your songs"
+              : "Tap to add filters for guest requests"
         }
         open={openSection === "tags"}
         onToggle={() => toggle("tags")}
       >
         <div className="grid gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-[#A8A29E]">
-              Up to {MAX_CUSTOM_TAGS} labels (maximum {MAX_TAG_CHARS} chars each)
-              you can apply when editing songs.
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <p className="min-w-0 flex-1 text-sm leading-relaxed text-[#A8A29E]">
+              Filters guests use when requesting songs. Up to {MAX_CUSTOM_TAGS}{" "}
+              tags, {MAX_TAG_CHARS} characters each.
             </p>
             <Link
-              href="/admin?tab=songs"
-              className="inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3 text-xs font-semibold text-[#A8A29E] transition hover:border-white/25 hover:text-[#FAFAF9]"
+              href={backHref}
+              className={adminChipClass("shrink-0 border-white/15")}
             >
               <Music2 size={13} />
-              Back to songs
+              {backLabel}
             </Link>
           </div>
 

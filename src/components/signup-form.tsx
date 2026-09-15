@@ -88,19 +88,19 @@ export function SignupForm() {
         <p className="text-[10px] font-bold tracking-[0.14em] text-[#9b671b] uppercase">
           Almost there
         </p>
-        <h1 className="mt-4 font-serif text-[clamp(1.75rem,5.5vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue">
+        <h1 className="mt-2 font-serif text-[clamp(1.5rem,5.5vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue sm:mt-4">
           Check your email
         </h1>
-        <p className="mt-3 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
+        <p className="mt-2 max-w-sm text-sm leading-snug text-mist sm:mt-3 sm:text-[0.95rem] sm:leading-[1.55]">
           We sent a verification link to{" "}
           <strong className="font-semibold text-ink">{email.trim()}</strong>.
           Open it to finish setup and claim your page.
         </p>
-        <div className="mt-8 rounded-2xl border border-border bg-field p-6 text-center shadow-xs">
-          <span className="mx-auto grid size-14 place-items-center rounded-full bg-selected text-[#B8862F]">
-            <Mail size={24} />
+        <div className="mt-5 rounded-2xl border border-border bg-field p-5 text-center shadow-xs sm:mt-8 sm:p-6">
+          <span className="mx-auto grid size-12 place-items-center rounded-full bg-selected text-[#B8862F] sm:size-14">
+            <Mail size={22} />
           </span>
-          <p className="mt-5 text-sm leading-relaxed text-mist">
+          <p className="mt-4 text-sm leading-relaxed text-mist sm:mt-5">
             Keep this tab open. We’ll redirect you automatically once you’re
             signed in.
           </p>
@@ -114,23 +114,23 @@ export function SignupForm() {
       <p className="text-[10px] font-bold tracking-[0.14em] text-[#9b671b] uppercase">
         Artist onboarding
       </p>
-      <h1 className="mt-4 font-serif text-[clamp(1.75rem,5.5vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue">
+      <h1 className="mt-2 font-serif text-[clamp(1.5rem,5.5vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue sm:mt-4">
         Create your Song Table page
       </h1>
-      <p className="mt-3 max-w-sm text-[0.95rem] leading-[1.55] text-mist">
+      <p className="mt-2 max-w-sm text-sm leading-snug text-mist sm:mt-3 sm:text-[0.95rem] sm:leading-[1.55]">
         Sign up with Google or email. Next you’ll pick a username and go live.
       </p>
 
-      <div className="mt-8 grid gap-5">
+      <div className="mt-5 grid gap-4 sm:mt-8 sm:gap-5">
       <GoogleSignInButton />
 
       <AuthOrDivider />
 
-      <form onSubmit={(event) => void onSubmit(event)} className="grid gap-4">
+      <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3.5 sm:gap-4">
         <div>
           <label
             htmlFor="signup-email"
-            className="mb-2 block text-sm font-medium text-mist"
+            className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
           >
             Email
           </label>
@@ -148,7 +148,7 @@ export function SignupForm() {
         <div>
           <label
             htmlFor="signup-password"
-            className="mb-2 block text-sm font-medium text-mist"
+            className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
           >
             Password
           </label>
@@ -178,7 +178,7 @@ export function SignupForm() {
         <div>
           <label
             htmlFor="signup-confirm"
-            className="mb-2 block text-sm font-medium text-mist"
+            className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
           >
             Confirm password
           </label>
@@ -219,7 +219,7 @@ export function SignupForm() {
         <Button
           type="submit"
           size="lg"
-          className="min-h-[52px] w-full rounded-full"
+          className="min-h-[48px] w-full rounded-full sm:min-h-[52px]"
           disabled={submitting}
         >
           {submitting ? <Loader2 size={16} className="animate-spin" /> : null}

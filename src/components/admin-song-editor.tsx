@@ -14,6 +14,10 @@ import {
   X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { adminSettingsHref } from "@/lib/admin-nav";
+import { adminChipClass, adminSegmentClass, adminSegmentGroupClass } from "@/lib/admin-ui";
+import { useEphemeralMessage } from "@/hooks/use-ephemeral-message";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import {
   normalizeCustomTags,
@@ -88,9 +92,10 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
   const [selectedCustom, setSelectedCustom] = useState<string[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [pendingRemoveSong, setPendingRemoveSong] = useState<Song | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useEphemeralMessage();
   const [portalReady, setPortalReady] = useState(false);
   const searchWrapRef = useRef<HTMLDivElement>(null);
 
@@ -380,10 +385,6 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
 
   async function removeSong(song: Song) {
     if (!supabase) return;
-    const confirmed = window.confirm(
-      `Remove “${song.title}” from your list? This cannot be undone.`,
-    );
-    if (!confirmed) return;
 
     setRemovingId(song.id);
     setError("");
@@ -397,11 +398,14 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
 
     if (deleteError) {
       setError(deleteError.message);
-    } else {
-      setSongs((current) => current.filter((item) => item.id !== song.id));
-      setMessage(`Removed “${song.title}”.`);
-      if (editingSong?.id === song.id) setEditingSong(null);
+      setRemovingId(null);
+      return;
     }
+
+    setSongs((current) => current.filter((item) => item.id !== song.id));
+    setMessage(`Removed “${song.title}”.`);
+    if (editingSong?.id === song.id) setEditingSong(null);
+    setPendingRemoveSong(null);
     setRemovingId(null);
   }
 
@@ -409,7 +413,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
     portalReady && editingSong
       ? createPortal(
           <div
-            className="fixed inset-0 z-[100] grid place-items-end bg-black/55 p-4 sm:place-items-center"
+            className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="edit-song-title"
@@ -502,7 +506,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                   <p className="text-sm text-[#A8A29E]">
                     No custom tags yet.{" "}
                     <Link
-                      href="/admin/settings#custom-tags"
+                      href={adminSettingsHref({ from: "songs", hash: "custom-tags" })}
                       className="font-semibold text-[#FAFAF9] underline underline-offset-2"
                       onClick={() => setEditingSong(null)}
                     >
@@ -562,7 +566,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
               <button
                 type="button"
                 disabled={savingEdit || removingId === editingSong.id}
-                onClick={() => void removeSong(editingSong)}
+                onClick={() => setPendingRemoveSong(editingSong)}
                 className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-red-400/30 text-sm font-semibold text-red-200 transition hover:bg-red-500/15 disabled:opacity-40"
               >
                 {removingId === editingSong.id ? (
@@ -676,27 +680,27 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
       </div>
 
       {draft ? (
-        <div className="rounded-2xl border border-white/15 bg-[#292524] p-4">
-          <div className="flex items-start gap-3">
+        <div className="rounded-xl border border-white/15 bg-[#292524] px-2.5 py-2">
+          <div className="flex items-center gap-2.5">
             {draft.hit.artworkUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={draft.hit.artworkUrl}
                 alt=""
-                width={56}
-                height={56}
-                className="size-14 shrink-0 rounded-xl object-cover"
+                width={40}
+                height={40}
+                className="size-10 shrink-0 rounded-md object-cover"
               />
             ) : (
-              <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/10 text-[#A8A29E]">
-                <Search size={18} />
+              <span className="grid size-10 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
+                <Search size={14} />
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-[#FAFAF9]">
+              <p className="truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
                 {draft.hit.title}
               </p>
-              <p className="truncate text-sm text-[#A8A29E]">
+              <p className="truncate text-xs leading-snug text-[#A8A29E]">
                 {draft.hit.artist}
                 {draft.hit.album ? ` · ${draft.hit.album}` : ""}
               </p>
@@ -706,52 +710,46 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
               aria-label="Cancel add"
               disabled={savingDraft}
               onClick={() => setDraft(null)}
-              className="grid size-9 shrink-0 place-items-center rounded-full text-[#A8A29E] transition hover:bg-white/10 hover:text-[#FAFAF9]"
+              className="grid size-8 shrink-0 place-items-center rounded-full text-[#A8A29E] transition hover:bg-white/10 hover:text-[#FAFAF9]"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
 
-          <div className="mt-4">
-            <p className="mb-1.5 text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
-              From catalog
+          <div className="mt-2">
+            <p className="mb-1 text-[10px] font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
+              Catalog
             </p>
             {draft.catalogTags.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {draft.catalogTags.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => removeDraftTag(tag)}
                     aria-label={`Remove tag ${tag}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-[#FAFAF9] transition hover:border-red-300/40 hover:bg-red-500/15 hover:text-red-100"
+                    className="inline-flex items-center gap-0.5 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-[#FAFAF9] transition hover:border-red-300/40 hover:bg-red-500/15 hover:text-red-100"
                   >
                     <span>{tag}</span>
-                    <X size={12} className="opacity-70" />
+                    <X size={10} className="opacity-70" />
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-[#78716C]">No catalog tags</p>
+              <p className="text-[11px] text-[#78716C]">No catalog tags</p>
             )}
           </div>
 
-          <div className="mt-4">
-            <p className="mb-1.5 text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
+          <div className="mt-2">
+            <p className="mb-1 text-[10px] font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
               Your tags
             </p>
             {customTags.length === 0 ? (
-              <p className="text-sm text-[#A8A29E]">
-                No custom tags yet.{" "}
-                <Link
-                  href="/admin/settings#custom-tags"
-                  className="font-semibold text-[#FAFAF9] underline underline-offset-2"
-                >
-                  Add them in profile
-                </Link>
+              <p className="text-[11px] text-[#A8A29E]">
+                No custom tags yet.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {customTags.map((tag) => {
                   const selected = draft.selectedCustom.includes(tag);
                   return (
@@ -761,7 +759,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                       onClick={() => toggleDraftCustomTag(tag)}
                       aria-pressed={selected}
                       className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                        "rounded-full border px-2 py-0.5 text-[11px] font-semibold transition",
                         selected
                           ? "border-[#E4C29B] bg-[#F3E9DF] text-[#1C1917]"
                           : "border-white/15 bg-transparent text-[#A8A29E] hover:border-white/30 hover:text-[#FAFAF9]",
@@ -773,24 +771,30 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                 })}
               </div>
             )}
-            <p className="mt-2 text-[11px] text-[#78716C]">
-              Tap your tags to apply them before adding.
-            </p>
           </div>
 
-          <button
-            type="button"
-            disabled={savingDraft}
-            onClick={() => void saveDraft()}
-            className="mt-4 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full bg-[#FAFAF9] text-sm font-bold text-[#1C1917] transition hover:bg-white disabled:opacity-40"
-          >
-            {savingDraft ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Plus size={16} />
-            )}
-            Add to list
-          </button>
+          <div className="mt-2.5 flex gap-2">
+            <button
+              type="button"
+              disabled={savingDraft}
+              onClick={() => void saveDraft()}
+              className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#FAFAF9] text-xs font-bold text-[#1C1917] transition hover:bg-white disabled:opacity-40"
+            >
+              {savingDraft ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Plus size={14} />
+              )}
+              Add to list
+            </button>
+            <Link
+              href={adminSettingsHref({ from: "songs", hash: "custom-tags" })}
+              className={adminChipClass("h-9 min-w-0 flex-1 justify-center border-white/15 bg-transparent hover:bg-white/5")}
+            >
+              <Tags size={13} />
+              Manage tags
+            </Link>
+          </div>
         </div>
       ) : null}
 
@@ -816,43 +820,33 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href="/admin/settings#custom-tags"
-              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-white/10 bg-[#1C1917] px-3 text-xs font-semibold text-[#A8A29E] transition hover:border-white/20 hover:text-[#FAFAF9]"
+              href={adminSettingsHref({ from: "songs", hash: "custom-tags" })}
+              className={adminChipClass()}
             >
-              <Tags size={13} />
-              Manage tags
+              <Tags size={13} aria-hidden />
+              <span>Manage tags</span>
             </Link>
 
             <div
               role="group"
               aria-label="Sort list"
-              className="inline-flex rounded-full border border-white/10 bg-[#1C1917] p-0.5"
+              className={adminSegmentGroupClass()}
             >
               <button
                 type="button"
                 onClick={() => setSort("newest")}
-                className={cn(
-                  "inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition",
-                  sort === "newest"
-                    ? "bg-[#FAFAF9] text-[#1C1917]"
-                    : "text-[#A8A29E] hover:text-[#FAFAF9]",
-                )}
+                className={adminSegmentClass(sort === "newest")}
               >
-                <Clock3 size={13} />
-                Newest
+                <Clock3 size={13} aria-hidden />
+                <span>Newest</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSort("alpha")}
-                className={cn(
-                  "inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition",
-                  sort === "alpha"
-                    ? "bg-[#FAFAF9] text-[#1C1917]"
-                    : "text-[#A8A29E] hover:text-[#FAFAF9]",
-                )}
+                className={adminSegmentClass(sort === "alpha")}
               >
-                <ArrowDownAZ size={13} />
-                A–Z
+                <ArrowDownAZ size={13} aria-hidden />
+                <span>A–Z</span>
               </button>
             </div>
           </div>
@@ -958,6 +952,26 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
       </div>
 
       {editModal}
+
+      <ConfirmDialog
+        open={Boolean(pendingRemoveSong)}
+        title="Remove song?"
+        description={
+          pendingRemoveSong
+            ? `Remove “${pendingRemoveSong.title}” from your list? This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        cancelLabel="Keep"
+        tone="danger"
+        busy={Boolean(pendingRemoveSong && removingId === pendingRemoveSong.id)}
+        onCancel={() => {
+          if (!removingId) setPendingRemoveSong(null);
+        }}
+        onConfirm={() => {
+          if (pendingRemoveSong) void removeSong(pendingRemoveSong);
+        }}
+      />
     </div>
   );
 }

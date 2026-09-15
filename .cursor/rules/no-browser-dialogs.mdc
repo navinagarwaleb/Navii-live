@@ -1,0 +1,35 @@
+---
+description: Never use browser dialogs; always use in-app ConfirmDialog / portals
+alwaysApply: true
+---
+
+# In-app modals only (no browser popups)
+
+Never use `window.confirm`, `window.alert`, or `window.prompt`.
+
+For confirms, warnings, and destructive actions, use the shared `ConfirmDialog`
+(`src/components/confirm-dialog.tsx`) or the same portal pattern as song add/edit:
+
+- `fixed inset-0` overlay + `createPortal(..., document.body)`
+- Center with `place-items-center` (never `place-items-end` / bottom-sheet for dialogs)
+- Rounded card (`rounded-2xl` admin / `rounded-3xl` paper)
+- Title + short description + Cancel / Confirm pill buttons
+- `surface="admin"` on dashboard; `surface="paper"` on guest request flow
+
+```tsx
+// ❌ BAD
+window.confirm("Are you sure you want to log out?");
+
+ // ✅ GOOD
+<ConfirmDialog
+  open={confirmLogout}
+  title="Log out?"
+  description="Are you sure you want to log out?"
+  confirmLabel="Log out"
+  cancelLabel="Stay signed in"
+  onConfirm={() => void logout()}
+  onCancel={() => setConfirmLogout(false)}
+/>
+```
+
+Also documented in `.cursorrules` under Modals.

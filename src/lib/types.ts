@@ -33,6 +33,8 @@ export type Setlist = {
   performer_id: string;
   name: string;
   icon?: string | null;
+  icon_color?: string | null;
+  position?: number;
   created_at?: string;
   updated_at?: string;
   song_count?: number;

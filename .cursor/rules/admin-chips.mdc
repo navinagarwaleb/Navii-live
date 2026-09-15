@@ -1,0 +1,21 @@
+---
+description: Admin toolbar chip typography (Manage tags standard)
+alwaysApply: true
+---
+
+# Admin chip controls
+
+Toolbar pills on the admin side must match **Manage tags**:
+
+- `text-[12px] font-semibold leading-none`
+- `h-9` / `min-h-[36px]`, `gap-1.5`, `px-3`, `rounded-full`
+
+Use helpers from `src/lib/admin-ui.ts`:
+
+- `adminChipClass()` — secondary outline chips (Manage tags, Back to…)
+- `adminSegmentClass(active)` — Newest / A–Z style toggles
+- `adminPrimaryChipClass()` — compact filled CTAs (New setlist, Add) — same size, `font-bold`
+
+Do not invent one-off `text-[11px]` / `text-sm` / mismatched heights for these toolbar controls.
+
+**Gotcha:** Global `button { font: inherit }` overrides Tailwind font utilities on buttons (links are fine). Keep `font-family: inherit` only in `globals.css`.

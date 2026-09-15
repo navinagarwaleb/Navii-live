@@ -15,14 +15,14 @@ export default async function SignupPage({
         : null;
 
   return (
-    <main className="relative mx-auto flex min-h-dvh w-full max-w-col flex-col px-6 py-8 sm:px-8 sm:py-12">
-      <BrandMark href="/" />
+    <main className="relative mx-auto flex min-h-dvh w-full max-w-col flex-col px-5 py-5 sm:px-8 sm:py-12">
+      <BrandMark href="/" compactMobile />
 
-      <section className="mt-12">
+      <section className="mt-5 sm:mt-12">
         {authError ? (
           <p
             role="alert"
-            className="mb-6 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
+            className="mb-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B] sm:mb-6"
           >
             {authError}
           </p>

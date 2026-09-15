@@ -33,18 +33,62 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
+  DEFAULT_SETLIST_COLOR,
+  SETLIST_COLOR_OPTIONS,
+  getSetlistColor,
+  normalizeSetlistColor,
+  type SetlistColorId,
+} from "@/lib/setlist-colors";
+import {
   DEFAULT_SETLIST_ICON,
   SETLIST_ICON_OPTIONS,
   getSetlistIcon,
   normalizeSetlistIcon,
   type SetlistIconId,
 } from "@/lib/setlist-icons";
+import { useEphemeralMessage } from "@/hooks/use-ephemeral-message";
+import { adminPrimaryChipClass } from "@/lib/admin-ui";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { Performer, Setlist, SetlistSong, Song } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const SONG_SELECT = "id,title,artist,active,tags,artwork_url,performer_id,created_at";
-const SETLIST_SELECT = "id,performer_id,name,icon,created_at,updated_at";
+const SETLIST_SELECT = "id,performer_id,name,icon,icon_color,position,created_at,updated_at";
+
+const SETLIST_APPEARANCE_COLUMN_HINT =
+  /icon|icon_color|column .* does not exist|Could not find/i;
+
+function appearanceColumnError(message: string | undefined) {
+  if (!SETLIST_APPEARANCE_COLUMN_HINT.test(message ?? "")) return message ?? "";
+  return "Setlist icon/color columns are missing. Run migrations 20260914_setlists_icon.sql and 20260914_setlists_icon_color.sql, then try again.";
+}
+
+function SetlistIconBadge({
+  icon,
+  color,
+  size = "md",
+  className,
+}: {
+  icon: string | null | undefined;
+  color: string | null | undefined;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const theme = getSetlistColor(color);
+  const Icon = getSetlistIcon(icon);
+  const box =
+    size === "lg" ? "size-12 rounded-2xl" : size === "sm" ? "size-10 rounded-xl" : "size-11 rounded-md";
+  const iconSize = size === "lg" ? 22 : size === "sm" ? 18 : 16;
+
+  return (
+    <span
+      className={cn("grid shrink-0 place-items-center", box, className)}
+      style={{ backgroundColor: theme.bg, color: theme.fg }}
+    >
+      <Icon size={iconSize} />
+    </span>
+  );
+}
 
 type SetlistRow = Setlist & { song_count: number };
 
@@ -71,13 +115,16 @@ function normalizeSetlistSong(row: SetlistSongJoinRow): SetlistSong {
 
 function SetlistIconPicker({
   value,
+  color,
   onChange,
   className,
 }: {
   value: SetlistIconId;
+  color: SetlistColorId;
   onChange: (next: SetlistIconId) => void;
   className?: string;
 }) {
+  const theme = getSetlistColor(color);
   return (
     <div className={cn("grid grid-cols-6 gap-1.5 sm:grid-cols-8", className)}>
       {SETLIST_ICON_OPTIONS.map((option) => {
@@ -92,15 +139,121 @@ function SetlistIconPicker({
             onClick={() => onChange(option.id)}
             className={cn(
               "grid aspect-square place-items-center rounded-xl border transition",
-              selected
-                ? "border-[#E4C29B] bg-[#F3E9DF] text-[#1C1917]"
-                : "border-white/10 bg-white/5 text-[#A8A29E] hover:border-white/25 hover:text-[#FAFAF9]",
+              selected ? "shadow-sm" : "opacity-80 hover:opacity-100",
             )}
+            style={{
+              backgroundColor: theme.bg,
+              color: theme.fg,
+              borderColor: selected ? theme.ring : "transparent",
+              boxShadow: selected ? `0 0 0 1px ${theme.ring}` : undefined,
+            }}
           >
             <option.Icon size={18} />
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function SetlistColorPicker({
+  value,
+  onChange,
+  className,
+}: {
+  value: SetlistColorId;
+  onChange: (next: SetlistColorId) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("grid grid-cols-5 gap-1.5 sm:grid-cols-10", className)}>
+      {SETLIST_COLOR_OPTIONS.map((option) => {
+        const selected = value === option.id;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            title={option.label}
+            aria-label={option.label}
+            aria-pressed={selected}
+            onClick={() => onChange(option.id)}
+            className={cn(
+              "aspect-square rounded-full border transition",
+              selected ? "scale-105 shadow-sm" : "hover:scale-105",
+            )}
+            style={{
+              backgroundColor: option.bg,
+              borderColor: selected ? option.ring : "rgba(255,255,255,0.12)",
+              boxShadow: selected
+                ? `0 0 0 2px ${option.ring}, inset 0 0 0 1px rgba(0,0,0,0.08)`
+                : "inset 0 0 0 1px rgba(0,0,0,0.08)",
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function SortableSetlistRow({
+  setlist,
+  index,
+  onOpen,
+}: {
+  setlist: SetlistRow;
+  index: number;
+  onOpen: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: setlist.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 bg-[#292524] px-2.5 py-1.5",
+        index > 0 && "border-t border-white/5",
+        isDragging && "z-20 rounded-xl border border-white/20 shadow-lg",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={`Drag to reorder ${setlist.name}`}
+        className="grid size-9 shrink-0 touch-none place-items-center rounded-full text-[#78716C] transition hover:bg-white/10 hover:text-[#FAFAF9]"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={15} />
+      </button>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-90"
+      >
+        <SetlistIconBadge icon={setlist.icon} color={setlist.icon_color} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
+            {setlist.name}
+          </span>
+          <span className="block truncate text-xs leading-snug text-[#A8A29E]">
+            {setlist.song_count} song
+            {setlist.song_count === 1 ? "" : "s"}
+          </span>
+        </span>
+        <ChevronRight size={15} className="shrink-0 text-[#78716C]" />
+      </button>
     </div>
   );
 }
@@ -199,17 +352,20 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useEphemeralMessage();
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [entries, setEntries] = useState<SetlistSong[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState<SetlistIconId>(DEFAULT_SETLIST_ICON);
+  const [newColor, setNewColor] = useState<SetlistColorId>(DEFAULT_SETLIST_COLOR);
   const [savingCreate, setSavingCreate] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [pickingIcon, setPickingIcon] = useState(false);
+  const [draftIcon, setDraftIcon] = useState<SetlistIconId>(DEFAULT_SETLIST_ICON);
+  const [draftColor, setDraftColor] = useState<SetlistColorId>(DEFAULT_SETLIST_COLOR);
   const [savingIcon, setSavingIcon] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
@@ -219,6 +375,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
   const [portalReady, setPortalReady] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [savingSetlistOrder, setSavingSetlistOrder] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -271,7 +428,8 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
           .from("setlists")
           .select(SETLIST_SELECT)
           .eq("performer_id", performer.id)
-          .order("updated_at", { ascending: false }),
+          .order("position", { ascending: true })
+          .order("created_at", { ascending: true }),
         supabase
           .from("songs")
           .select(SONG_SELECT)
@@ -281,11 +439,15 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
 
       if (setlistsResult.error) {
         setError(
-          /relation .*setlists.* does not exist|Could not find/i.test(
+          /position|column .* does not exist|Could not find/i.test(
             setlistsResult.error.message ?? "",
           )
-            ? "Setlists table is missing. Run migration 20260914_setlists.sql, then reload."
-            : setlistsResult.error.message,
+            ? "Setlist position column is missing. Run migration 20260914_setlists_position.sql, then reload."
+            : /relation .*setlists.* does not exist|Could not find/i.test(
+                  setlistsResult.error.message ?? "",
+                )
+              ? "Setlists table is missing. Run migration 20260914_setlists.sql, then reload."
+              : setlistsResult.error.message,
         );
         setLoading(false);
         return;
@@ -354,35 +516,46 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     setError("");
     setMessage("");
 
+    const nextPosition = 0;
+
     const { data, error: insertError } = await supabase
       .from("setlists")
       .insert({
         performer_id: performer.id,
         name,
         icon: newIcon,
+        icon_color: newColor,
+        position: nextPosition,
       })
       .select(SETLIST_SELECT)
       .single();
 
     if (insertError) {
-      setError(
-        /icon|column .* does not exist|Could not find/i.test(
-          insertError.message ?? "",
-        )
-          ? "Setlist icon column is missing. Run migration 20260914_setlists_icon.sql, then try again."
-          : insertError.message,
-      );
+      setError(appearanceColumnError(insertError.message) || insertError.message);
       setSavingCreate(false);
       return;
     }
 
-    const created = { ...(data as Setlist), song_count: 0 };
-    setSetlists((current) => [created, ...current]);
+    const created = {
+      ...(data as Setlist),
+      position: nextPosition,
+      song_count: 0,
+    };
+    const reordered = [
+      created,
+      ...setlists.map((item, index) => ({
+        ...item,
+        position: index + 1,
+      })),
+    ];
+    setSetlists(reordered);
     setNewName("");
     setNewIcon(DEFAULT_SETLIST_ICON);
+    setNewColor(DEFAULT_SETLIST_COLOR);
     setCreating(false);
     setSavingCreate(false);
     setMessage(`Created “${created.name}”.`);
+    await persistSetlistOrder(reordered);
     await openSetlist(created);
   }
 
@@ -417,9 +590,30 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     setMessage("Setlist renamed.");
   }
 
-  async function saveIcon(icon: SetlistIconId) {
+  function beginAppearanceEdit() {
+    if (!activeSetlist) return;
+    setDraftIcon(normalizeSetlistIcon(activeSetlist.icon));
+    setDraftColor(normalizeSetlistColor(activeSetlist.icon_color));
+    setPickingIcon(true);
+  }
+
+  function cancelAppearanceEdit() {
+    setPickingIcon(false);
+    if (!activeSetlist) return;
+    setDraftIcon(normalizeSetlistIcon(activeSetlist.icon));
+    setDraftColor(normalizeSetlistColor(activeSetlist.icon_color));
+  }
+
+  async function applyAppearance() {
     if (!supabase || !activeSetlist) return;
-    if (normalizeSetlistIcon(activeSetlist.icon) === icon) {
+
+    const nextIcon = draftIcon;
+    const nextColor = draftColor;
+    const iconChanged = normalizeSetlistIcon(activeSetlist.icon) !== nextIcon;
+    const colorChanged =
+      normalizeSetlistColor(activeSetlist.icon_color) !== nextColor;
+
+    if (!iconChanged && !colorChanged) {
       setPickingIcon(false);
       return;
     }
@@ -429,20 +623,18 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
 
     const { data, error: updateError } = await supabase
       .from("setlists")
-      .update({ icon, updated_at: new Date().toISOString() })
+      .update({
+        icon: nextIcon,
+        icon_color: nextColor,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", activeSetlist.id)
       .eq("performer_id", performer.id)
       .select(SETLIST_SELECT)
       .single();
 
     if (updateError) {
-      setError(
-        /icon|column .* does not exist|Could not find/i.test(
-          updateError.message ?? "",
-        )
-          ? "Setlist icon column is missing. Run migration 20260914_setlists_icon.sql, then try again."
-          : updateError.message,
-      );
+      setError(appearanceColumnError(updateError.message) || updateError.message);
       setSavingIcon(false);
       return;
     }
@@ -457,7 +649,6 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     );
     setPickingIcon(false);
     setSavingIcon(false);
-    setMessage("Icon updated.");
   }
 
   async function addSongToSetlist(song: Song) {
@@ -571,7 +762,37 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     setSavingOrder(false);
   }
 
-  async function onDragEnd(event: DragEndEvent) {
+  async function persistSetlistOrder(nextSetlists: SetlistRow[]) {
+    if (!supabase) return;
+    setSavingSetlistOrder(true);
+    setError("");
+
+    const updates = nextSetlists.map((setlist, index) =>
+      supabase
+        .from("setlists")
+        .update({ position: index, updated_at: new Date().toISOString() })
+        .eq("id", setlist.id)
+        .eq("performer_id", performer.id),
+    );
+
+    const results = await Promise.all(updates);
+    const failed = results.find((result) => result.error);
+    if (failed?.error) {
+      setError(
+        /position|column .* does not exist|Could not find/i.test(
+          failed.error.message ?? "",
+        )
+          ? "Setlist position column is missing. Run migration 20260914_setlists_position.sql, then try again."
+          : failed.error.message,
+      );
+      setSavingSetlistOrder(false);
+      return;
+    }
+
+    setSavingSetlistOrder(false);
+  }
+
+  async function onEntryDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -584,6 +805,21 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     );
     setEntries(reordered);
     await persistEntryOrder(reordered);
+  }
+
+  async function onSetlistDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = setlists.findIndex((item) => item.id === active.id);
+    const newIndex = setlists.findIndex((item) => item.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(setlists, oldIndex, newIndex).map(
+      (item, index) => ({ ...item, position: index }),
+    );
+    setSetlists(reordered);
+    await persistSetlistOrder(reordered);
   }
 
   async function deleteSetlist() {
@@ -627,7 +863,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     portalReady && creating
       ? createPortal(
           <div
-            className="fixed inset-0 z-[100] grid place-items-end bg-black/55 p-4 sm:place-items-center"
+            className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-setlist-title"
@@ -672,9 +908,17 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                 required
               />
               <p className="mt-3 mb-1.5 text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
+                Color
+              </p>
+              <SetlistColorPicker value={newColor} onChange={setNewColor} />
+              <p className="mt-3 mb-1.5 text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
                 Icon
               </p>
-              <SetlistIconPicker value={newIcon} onChange={setNewIcon} />
+              <SetlistIconPicker
+                value={newIcon}
+                color={newColor}
+                onChange={setNewIcon}
+              />
               <button
                 type="submit"
                 disabled={savingCreate || !newName.trim()}
@@ -697,7 +941,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     portalReady && pickerOpen && activeSetlist
       ? createPortal(
           <div
-            className="fixed inset-0 z-[100] grid place-items-end bg-black/55 p-4 sm:place-items-center"
+            className="fixed inset-0 z-[100] grid place-items-center bg-black/55 p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-songs-title"
@@ -872,16 +1116,23 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                aria-label="Change setlist icon"
+                aria-label="Change setlist icon and color"
                 aria-expanded={pickingIcon}
                 disabled={savingIcon}
-                onClick={() => setPickingIcon((value) => !value)}
-                className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-[#FAFAF9] transition hover:bg-white/10"
+                onClick={() => {
+                  if (pickingIcon) {
+                    cancelAppearanceEdit();
+                  } else {
+                    beginAppearanceEdit();
+                  }
+                }}
+                className="shrink-0 rounded-xl transition hover:opacity-90 disabled:opacity-50"
               >
-                {(() => {
-                  const Icon = getSetlistIcon(activeSetlist.icon);
-                  return <Icon size={18} />;
-                })()}
+                <SetlistIconBadge
+                  icon={pickingIcon ? draftIcon : activeSetlist.icon}
+                  color={pickingIcon ? draftColor : activeSetlist.icon_color}
+                  size="sm"
+                />
               </button>
               <div className="min-w-0 flex-1">
                 <h2 className="truncate font-serif text-lg font-semibold leading-tight text-[#FAFAF9]">
@@ -892,17 +1143,6 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                   {savingOrder ? " · saving…" : " · drag to reorder"}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setPickerQuery("");
-                  setPickerOpen(true);
-                }}
-                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-[#FAFAF9] px-3 text-xs font-bold text-[#1C1917] transition hover:bg-white"
-              >
-                <Plus size={14} />
-                Add
-              </button>
               <button
                 type="button"
                 aria-label="Rename setlist"
@@ -920,15 +1160,56 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                 <Trash2 size={14} />
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPickerQuery("");
+                setPickerOpen(true);
+              }}
+              className="flex h-10 w-full items-center gap-2.5 rounded-full border border-white/15 bg-[#292524] px-3.5 text-left transition hover:border-white/25 hover:bg-[#2f2a27]"
+            >
+              <Search size={15} className="shrink-0 text-[#A8A29E]" />
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-none text-[#A8A29E]">
+                Add songs from your list…
+              </span>
+              <Plus size={14} className="shrink-0 text-[#78716C]" />
+            </button>
             {pickingIcon ? (
               <div className="rounded-xl border border-white/10 bg-[#292524] p-2.5">
                 <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
-                  Choose icon
+                  Color
+                </p>
+                <SetlistColorPicker value={draftColor} onChange={setDraftColor} />
+                <p className="mt-3 mb-2 text-[11px] font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
+                  Icon
                 </p>
                 <SetlistIconPicker
-                  value={normalizeSetlistIcon(activeSetlist.icon)}
-                  onChange={(icon) => void saveIcon(icon)}
+                  value={draftIcon}
+                  color={draftColor}
+                  onChange={setDraftIcon}
                 />
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={savingIcon}
+                    onClick={cancelAppearanceEdit}
+                    className="h-9 flex-1 rounded-full border border-white/15 text-xs font-semibold text-[#FAFAF9] transition hover:bg-white/5 disabled:opacity-40"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingIcon}
+                    onClick={() => void applyAppearance()}
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#FAFAF9] text-xs font-bold text-[#1C1917] transition hover:bg-white disabled:opacity-40"
+                  >
+                    {savingIcon ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : null}
+                    Apply
+                  </button>
+                </div>
               </div>
             ) : null}
           </div>
@@ -990,7 +1271,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
-            onDragEnd={(event) => void onDragEnd(event)}
+            onDragEnd={(event) => void onEntryDragEnd(event)}
           >
             <SortableContext
               items={entries.map((entry) => entry.id)}
@@ -1025,8 +1306,8 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
             Setlists
           </h2>
           <p className="mt-0.5 text-sm text-[#A8A29E]">
-            Create setlists for each gig from your song list. A song can appear
-            in more than one setlist.
+            Create setlists for each gig from your song list. Drag to reorder
+            {savingSetlistOrder ? " · saving…" : ""}.
           </p>
         </div>
         <button
@@ -1034,9 +1315,10 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
           onClick={() => {
             setNewName("");
             setNewIcon(DEFAULT_SETLIST_ICON);
+            setNewColor(DEFAULT_SETLIST_COLOR);
             setCreating(true);
           }}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#FAFAF9] px-3 text-xs font-bold text-[#1C1917] transition hover:bg-white"
+          className={adminPrimaryChipClass()}
         >
           <Plus size={14} />
           New setlist
@@ -1059,12 +1341,12 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
 
       {setlists.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 px-5 py-12 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-white/5 text-[#A8A29E]">
-            {(() => {
-              const Icon = getSetlistIcon(DEFAULT_SETLIST_ICON);
-              return <Icon size={22} />;
-            })()}
-          </span>
+          <SetlistIconBadge
+            icon={DEFAULT_SETLIST_ICON}
+            color={DEFAULT_SETLIST_COLOR}
+            size="lg"
+            className="mx-auto"
+          />
           <p className="mt-4 font-serif text-lg font-semibold text-[#FAFAF9]">
             No setlists yet
           </p>
@@ -1075,34 +1357,25 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-white/10 bg-[#292524]">
-          {setlists.map((setlist, index) => (
-            <button
-              key={setlist.id}
-              type="button"
-              onClick={() => void openSetlist(setlist)}
-              className={cn(
-                "flex w-full items-center gap-3 px-2.5 py-1.5 text-left transition hover:bg-white/5",
-                index > 0 && "border-t border-white/5",
-              )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => void onSetlistDragEnd(event)}
+          >
+            <SortableContext
+              items={setlists.map((setlist) => setlist.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
-                {(() => {
-                  const Icon = getSetlistIcon(setlist.icon);
-                  return <Icon size={16} />;
-                })()}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
-                  {setlist.name}
-                </span>
-                <span className="block truncate text-xs leading-snug text-[#A8A29E]">
-                  {setlist.song_count} song
-                  {setlist.song_count === 1 ? "" : "s"}
-                </span>
-              </span>
-              <ChevronRight size={15} className="shrink-0 text-[#78716C]" />
-            </button>
-          ))}
+              {setlists.map((setlist, index) => (
+                <SortableSetlistRow
+                  key={setlist.id}
+                  setlist={setlist}
+                  index={index}
+                  onOpen={() => void openSetlist(setlist)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 

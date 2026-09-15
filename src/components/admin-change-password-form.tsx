@@ -10,6 +10,7 @@ import {
 } from "@/lib/create-performer-account";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { useEphemeralMessage } from "@/hooks/use-ephemeral-message";
 
 export function AdminChangePasswordForm() {
   const panelId = useId();
@@ -21,7 +22,7 @@ export function AdminChangePasswordForm() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useEphemeralMessage();
   const [error, setError] = useState("");
 
   useEffect(() => {

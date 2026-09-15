@@ -37,7 +37,7 @@ export function PerformerTipButton({ performer }: { performer: Performer }) {
     open && mounted
       ? createPortal(
           <div
-            className="fixed inset-0 z-[100] grid place-items-end bg-ink/45 p-4 sm:place-items-center"
+            className="fixed inset-0 z-[100] grid place-items-center bg-ink/45 p-4"
             role="presentation"
             onClick={() => setOpen(false)}
           >

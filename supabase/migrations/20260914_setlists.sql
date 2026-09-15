@@ -5,6 +5,8 @@ create table if not exists public.setlists (
   performer_id uuid not null references public.performers(id) on delete cascade,
   name text not null,
   icon text not null default 'list-music',
+  icon_color text not null default 'sand',
+  position integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

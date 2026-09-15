@@ -96,7 +96,7 @@ export function LoginForm({
   }
 
   return (
-    <div className="mt-8 grid gap-5">
+    <div className="mt-5 grid gap-4 sm:mt-8 sm:gap-5">
       {mode === "signin" ? (
         <>
           <GoogleSignInButton />

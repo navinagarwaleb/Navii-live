@@ -21,6 +21,8 @@ import { AdminOnboardingBanner } from "@/components/admin-onboarding";
 import { AdminSetlists } from "@/components/admin-setlists";
 import { AdminSongEditor } from "@/components/admin-song-editor";
 import { AdminTipsForm } from "@/components/admin-tips-form";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { adminSettingsHref } from "@/lib/admin-nav";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { Performer, RequestStatus, SongRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -288,6 +290,8 @@ export function AdminDashboard({
   const [mounted, setMounted] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -476,6 +480,7 @@ export function AdminDashboard({
   }
 
   async function logout() {
+    setLoggingOut(true);
     if (supabase) await supabase.auth.signOut();
     router.replace("/login");
     router.refresh();
@@ -500,7 +505,7 @@ export function AdminDashboard({
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/admin/settings"
+              href={adminSettingsHref({ from: tab })}
               className="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-full border border-white/15 text-[#FAFAF9] transition hover:bg-white/10"
               aria-label="Profile settings"
             >
@@ -509,7 +514,7 @@ export function AdminDashboard({
             <button
               type="button"
               aria-label="Log out"
-              onClick={() => void logout()}
+              onClick={() => setConfirmLogout(true)}
               className="grid size-11 min-h-[44px] min-w-[44px] place-items-center rounded-full border border-white/15 text-[#FAFAF9] transition hover:bg-white/10"
             >
               <LogOut size={19} />
@@ -592,13 +597,10 @@ export function AdminDashboard({
             )}
 
             <section className="mt-5">
-              <div className="mb-2.5 flex items-center justify-between gap-3">
+              <div className="mb-2.5">
                 <h2 className="text-sm font-semibold text-[#FAFAF9]">
-                  Pending requests
+                  Pending requests ({activeQueue.length})
                 </h2>
-                <span className="text-xs font-bold text-[#A8A29E]">
-                  {activeQueue.length}
-                </span>
               </div>
 
               {activeQueue.length === 0 ? (
@@ -721,6 +723,19 @@ export function AdminDashboard({
           </div>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Log out?"
+        description="Are you sure you want to log out?"
+        confirmLabel="Log out"
+        cancelLabel="Stay signed in"
+        busy={loggingOut}
+        onCancel={() => {
+          if (!loggingOut) setConfirmLogout(false);
+        }}
+        onConfirm={() => void logout()}
+      />
     </main>
   );
 }

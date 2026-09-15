@@ -6,16 +6,31 @@ const TAGLINE = "The shortest distance between a fan and a song.";
 export function BrandMark({
   href,
   className,
+  /** Hide tagline under `sm` so auth pages stay compact on phones. */
+  compactMobile = false,
 }: {
   href?: string;
   className?: string;
+  compactMobile?: boolean;
 }) {
   const content = (
     <>
-      <span className="block font-serif text-[clamp(1.75rem,5vw,2.25rem)] font-semibold tracking-[-0.01em] text-deep-blue">
+      <span
+        className={cn(
+          "block font-serif font-semibold tracking-[-0.01em] text-deep-blue",
+          compactMobile
+            ? "text-[1.35rem] leading-tight sm:text-[clamp(1.75rem,5vw,2.25rem)] sm:leading-none"
+            : "text-[clamp(1.75rem,5vw,2.25rem)]",
+        )}
+      >
         Song Table
       </span>
-      <span className="mt-1.5 block text-[0.95rem] leading-[1.4] text-mist">
+      <span
+        className={cn(
+          "mt-1.5 block text-[0.95rem] leading-[1.4] text-mist",
+          compactMobile && "hidden sm:block",
+        )}
+      >
         {TAGLINE}
       </span>
     </>

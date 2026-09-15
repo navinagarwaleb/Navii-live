@@ -10,6 +10,7 @@ import {
   SocialIconButton,
 } from "@/components/tip-method-icons";
 import { PERFORMER_SELECT_SAFE } from "@/lib/performer-select";
+import { adminSettingsHref } from "@/lib/admin-nav";
 import { getSocialLinks } from "@/lib/social";
 import {
   normalizeCashAppHandle,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/tips";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { Performer } from "@/lib/types";
+import { useEphemeralMessage } from "@/hooks/use-ephemeral-message";
 
 export function AdminTipsForm({
   performer,
@@ -43,7 +45,7 @@ export function AdminTipsForm({
     performer.cash_app_handle ?? "",
   );
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useEphemeralMessage();
   const [error, setError] = useState("");
 
   async function onSave(event: FormEvent) {
@@ -183,7 +185,7 @@ export function AdminTipsForm({
         <p className="text-sm text-[#A8A29E]">
           Add Instagram or Facebook in{" "}
           <a
-            href="/admin/settings"
+            href={adminSettingsHref({ from: "tips" })}
             className="font-semibold text-[#FAFAF9] underline-offset-2 hover:underline"
           >
             Profile settings

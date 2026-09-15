@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  CircleCheckBig,
   ExternalLink,
   Heart,
   Loader2,
@@ -16,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { getSocialLinks, hasSocialLinks } from "@/lib/social";
 import { hasTipMethods, tipMethodLinks } from "@/lib/tips";
@@ -187,18 +187,16 @@ function StepIntro({
 }) {
   return (
     <div className="text-left">
-      <p className="text-[0.72rem] font-bold tracking-[0.08em] text-mist uppercase">
+      <p className="text-[11px] font-bold tracking-[0.12em] text-mist uppercase">
         {eyebrow}
       </p>
       <h1 className="mt-1 font-serif text-[clamp(1.5rem,5.6vw,1.75rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue">
         {title}
       </h1>
       {description ? (
-        <p className="mt-[7px] text-[0.95rem] leading-[1.4] text-mist">
-          {description}
-        </p>
+        <p className="mt-1.5 text-sm leading-snug text-mist">{description}</p>
       ) : null}
-      <div className="mt-4 -mx-[18px] border-b border-border sm:-mx-5" />
+      <div className="mt-3 -mx-[18px] border-b border-border sm:-mx-5" />
     </div>
   );
 }
@@ -226,6 +224,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
   const [submittedRequest, setSubmittedRequest] =
     useState<SongRequest | null>(null);
   const [error, setError] = useState("");
+  const [pendingOccasion, setPendingOccasion] = useState<string | null>(null);
 
   const tipLinks = tipMethodLinks(performer, selectedTipAmount);
 
@@ -483,10 +482,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
   if (step === 5) {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-col flex-col items-center justify-center px-6 py-10 pb-16 text-center">
-        <div className="grid size-16 place-items-center rounded-full bg-surface text-[#B8862F] shadow-soft">
-          <CircleCheckBig size={30} />
-        </div>
-        <Badge className="mt-6">Request received</Badge>
+        <Badge>Request received</Badge>
         <h1 className="mt-4 font-serif text-[clamp(1.75rem,6vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue">
           Your song is in the queue!
         </h1>
@@ -734,11 +730,8 @@ export function RequestWizard({ performer }: { performer: Performer }) {
                       occasion !== item.label &&
                       (song || requesterName.trim())
                     ) {
-                      const confirmed = window.confirm(
-                        "Changing the occasion will reset your song selection. Continue?",
-                      );
-                      if (!confirmed) return;
-                      setSong(null);
+                      setPendingOccasion(item.label);
+                      return;
                     }
                     setOccasion(item.label);
                   }}
@@ -758,37 +751,32 @@ export function RequestWizard({ performer }: { performer: Performer }) {
             <StepIntro
               eyebrow="Choose your tune"
               title="What song are we playing?"
+              description="Which sounds like you?"
             />
 
-            <div className="mt-4 grid gap-2">
-              <p className="min-w-0 text-[clamp(0.98rem,4.1vw,1.1rem)] font-semibold leading-[1.35] text-deep-blue">
-                Which sound like you?
-              </p>
-
-              <div className="flex flex-wrap gap-1.5">
-                {availableFilters.map((filter) => {
-                  const selected = genreFilter === filter;
-                  const count = tagCounts[filter] ?? 0;
-                  return (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setGenreFilter(filter)}
-                      className={cn(
-                        "min-h-[28px] rounded-full border border-border bg-field px-3 py-1 text-[11px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
-                        !selected && "hover:border-border hover:bg-field",
-                        selected &&
-                          "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
-                      )}
-                    >
-                      {filter}
-                      <span className="ml-1 text-[10px] text-muted">
-                        ({count})
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {availableFilters.map((filter) => {
+                const selected = genreFilter === filter;
+                const count = tagCounts[filter] ?? 0;
+                return (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setGenreFilter(filter)}
+                    className={cn(
+                      "min-h-[28px] rounded-full border border-border bg-field px-3 py-1 text-[11px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
+                      !selected && "hover:border-border hover:bg-field",
+                      selected &&
+                        "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
+                    )}
+                  >
+                    {filter}
+                    <span className="ml-1 text-[10px] text-muted">
+                      ({count})
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             <input
@@ -1011,6 +999,22 @@ export function RequestWizard({ performer }: { performer: Performer }) {
           </p>
         ) : null}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingOccasion)}
+        title="Change occasion?"
+        description="Changing the occasion will reset your song selection. Continue?"
+        confirmLabel="Continue"
+        cancelLabel="Keep current"
+        surface="paper"
+        onCancel={() => setPendingOccasion(null)}
+        onConfirm={() => {
+          if (!pendingOccasion) return;
+          setSong(null);
+          setOccasion(pendingOccasion);
+          setPendingOccasion(null);
+        }}
+      />
     </main>
   );
 }

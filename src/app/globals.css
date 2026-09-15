@@ -60,7 +60,8 @@ body {
 
 button,
 input {
-  font: inherit;
+  /* Family only — full `font: inherit` overrides Tailwind text-* / font-* on buttons */
+  font-family: inherit;
 }
 
 ::selection {
