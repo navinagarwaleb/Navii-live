@@ -9,8 +9,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronDown, Loader2, Music2 } from "lucide-react";
+import { ChevronDown, Loader2, Music2, X } from "lucide-react";
 import { SongTagEditor } from "@/components/song-tag-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import {
   MAX_CUSTOM_TAGS,
   MAX_TAG_CHARS,
   normalizeCustomTags,
+  normalizeTags,
 } from "@/lib/tags";
 import type { Performer } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -118,8 +120,16 @@ export function AdminProfileForm({
   const [socialMessage, setSocialMessage] = useState("");
   const [socialError, setSocialError] = useState("");
   const [tagsError, setTagsError] = useState("");
+  const [portalReady, setPortalReady] = useState(false);
+  const [pendingRemoveTag, setPendingRemoveTag] = useState<string | null>(null);
+  const [removingTag, setRemovingTag] = useState(false);
   const tagsSaveTimer = useRef<number | null>(null);
   const tagsRequestId = useRef(0);
+  const removeResolveRef = useRef<((value: boolean) => void) | null>(null);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (initialOpenSection) setOpenSection(initialOpenSection);
@@ -127,6 +137,14 @@ export function AdminProfileForm({
 
   function toggle(section: "profile" | "social" | "tags") {
     setOpenSection((current) => (current === section ? null : section));
+  }
+
+  function closeRemoveModal(result: boolean) {
+    const resolve = removeResolveRef.current;
+    removeResolveRef.current = null;
+    setPendingRemoveTag(null);
+    setRemovingTag(false);
+    resolve?.(result);
   }
 
   async function onSaveProfile(event: FormEvent) {
@@ -247,6 +265,48 @@ export function AdminProfileForm({
     [onSaved, performer.id],
   );
 
+  const stripTagFromSongs = useCallback(
+    async (tag: string) => {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) return;
+
+      const needle = tag.trim().toLowerCase();
+      const { data: songs, error: loadError } = await supabase
+        .from("songs")
+        .select("id,tags")
+        .eq("performer_id", performer.id);
+
+      if (loadError) {
+        setTagsError(loadError.message);
+        return;
+      }
+      if (!songs?.length) return;
+
+      for (const song of songs) {
+        const current = (song.tags as string[] | null) ?? [];
+        if (!current.some((item) => item.trim().toLowerCase() === needle)) {
+          continue;
+        }
+
+        const cleaned = normalizeTags(
+          current.filter((item) => item.trim().toLowerCase() !== needle),
+        );
+
+        const { error: updateError } = await supabase
+          .from("songs")
+          .update({ tags: cleaned })
+          .eq("id", song.id)
+          .eq("performer_id", performer.id);
+
+        if (updateError) {
+          setTagsError(updateError.message);
+          return;
+        }
+      }
+    },
+    [performer.id],
+  );
+
   function onTagsChange(next: string[]) {
     setCustomTags(next);
     setTagsStatus("idle");
@@ -256,13 +316,112 @@ export function AdminProfileForm({
     }, 450);
   }
 
+  function onRequestRemoveTag(tag: string) {
+    return new Promise<boolean>((resolve) => {
+      if (removeResolveRef.current) {
+        removeResolveRef.current(false);
+      }
+      removeResolveRef.current = resolve;
+      setPendingRemoveTag(tag);
+    });
+  }
+
+  async function confirmRemoveTag() {
+    if (!pendingRemoveTag) return;
+    setRemovingTag(true);
+    setTagsError("");
+    try {
+      await stripTagFromSongs(pendingRemoveTag);
+      closeRemoveModal(true);
+    } catch (error) {
+      setRemovingTag(false);
+      setTagsError(
+        error instanceof Error ? error.message : "Could not remove tag.",
+      );
+    }
+  }
+
   useEffect(() => {
     return () => {
       if (tagsSaveTimer.current) window.clearTimeout(tagsSaveTimer.current);
+      if (removeResolveRef.current) {
+        removeResolveRef.current(false);
+        removeResolveRef.current = null;
+      }
     };
   }, []);
 
   const tagCount = customTags.length;
+
+  const removeModal =
+    portalReady && pendingRemoveTag
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[100] grid place-items-end bg-black/55 p-4 sm:place-items-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-tag-title"
+            onClick={() => {
+              if (!removingTag) closeRemoveModal(false);
+            }}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-white/15 bg-[#1C1917] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p
+                    id="remove-tag-title"
+                    className="font-serif text-lg font-semibold text-[#FAFAF9]"
+                  >
+                    Remove tag?
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[#A8A29E]">
+                    Caution: Any song in your list that has the tag{" "}
+                    <span className="font-semibold text-[#FAFAF9]">
+                      “{pendingRemoveTag}”
+                    </span>{" "}
+                    will have it removed automatically.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  disabled={removingTag}
+                  onClick={() => closeRemoveModal(false)}
+                  className="grid size-9 shrink-0 place-items-center rounded-full text-[#A8A29E] transition hover:bg-white/10 hover:text-[#FAFAF9]"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={removingTag}
+                  onClick={() => closeRemoveModal(false)}
+                  className="min-h-[44px] rounded-full border border-white/15 text-sm font-semibold text-[#FAFAF9] transition hover:bg-white/5 disabled:opacity-40"
+                >
+                  Keep tag
+                </button>
+                <button
+                  type="button"
+                  disabled={removingTag}
+                  onClick={() => void confirmRemoveTag()}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-red-500/90 text-sm font-bold text-[#FAFAF9] transition hover:bg-red-500 disabled:opacity-40"
+                >
+                  {removingTag ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : null}
+                  Remove tag
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <div className="grid gap-3">
@@ -451,6 +610,7 @@ export function AdminProfileForm({
           <SongTagEditor
             tags={customTags}
             onChange={onTagsChange}
+            onRequestRemove={onRequestRemoveTag}
             maxTags={MAX_CUSTOM_TAGS}
             maxChars={MAX_TAG_CHARS}
           />
@@ -473,6 +633,8 @@ export function AdminProfileForm({
           ) : null}
         </div>
       </SettingsAccordion>
+
+      {removeModal}
     </div>
   );
 }

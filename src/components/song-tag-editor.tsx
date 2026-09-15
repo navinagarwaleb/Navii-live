@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 type SongTagEditorProps = {
   tags: string[];
   onChange: (tags: string[]) => void;
+  /** Return false to cancel removing a chip. */
+  onRequestRemove?: (tag: string) => boolean | Promise<boolean>;
   maxTags?: number;
   maxChars?: number;
   className?: string;
@@ -22,6 +24,7 @@ type SongTagEditorProps = {
 export function SongTagEditor({
   tags,
   onChange,
+  onRequestRemove,
   maxTags = MAX_CUSTOM_TAGS,
   maxChars = MAX_TAG_CHARS,
   className,
@@ -37,7 +40,11 @@ export function SongTagEditor({
     setDraft("");
   }
 
-  function removeTag(tag: string) {
+  async function removeTag(tag: string) {
+    if (onRequestRemove) {
+      const allowed = await onRequestRemove(tag);
+      if (!allowed) return;
+    }
     onChange(tags.filter((item) => item !== tag));
   }
 
@@ -48,7 +55,7 @@ export function SongTagEditor({
       return;
     }
     if (event.key === "Backspace" && !draft && tags.length > 0) {
-      removeTag(tags[tags.length - 1]!);
+      void removeTag(tags[tags.length - 1]!);
     }
   }
 
@@ -62,7 +69,7 @@ export function SongTagEditor({
             <button
               key={tag}
               type="button"
-              onClick={() => removeTag(tag)}
+              onClick={() => void removeTag(tag)}
               className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-[#FAFAF9] transition hover:border-red-300/40 hover:bg-red-500/15 hover:text-red-100"
               aria-label={`Remove tag ${tag}`}
             >

@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Clock3,
   Heart,
+  ListMusic,
   LogOut,
   Music2,
   QrCode,
@@ -17,6 +18,7 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminOnboardingBanner } from "@/components/admin-onboarding";
+import { AdminSetlists } from "@/components/admin-setlists";
 import { AdminSongEditor } from "@/components/admin-song-editor";
 import { AdminTipsForm } from "@/components/admin-tips-form";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
@@ -42,17 +44,25 @@ const statusStyles: Record<RequestStatus, string> = {
   played: "bg-violet-400/20 text-violet-200",
 };
 
-type AdminTab = "queue" | "live" | "songs" | "tips";
+type AdminTab = "queue" | "live" | "songs" | "sets" | "tips";
 
 const TABS: { id: AdminTab; label: string; icon: typeof Music2 }[] = [
   { id: "queue", label: "Queue", icon: Radio },
   { id: "live", label: "Live", icon: QrCode },
   { id: "songs", label: "Songs", icon: Music2 },
+  { id: "sets", label: "Sets", icon: ListMusic },
   { id: "tips", label: "Tips", icon: Wallet },
 ];
 
 function parseTab(value: string | null): AdminTab {
-  if (value === "live" || value === "songs" || value === "tips") return value;
+  if (
+    value === "live" ||
+    value === "songs" ||
+    value === "sets" ||
+    value === "tips"
+  ) {
+    return value;
+  }
   return "queue";
 }
 
@@ -687,6 +697,12 @@ export function AdminDashboard({
         {tab === "songs" ? (
           <div className="mt-6">
             <AdminSongEditor performer={performer} />
+          </div>
+        ) : null}
+
+        {tab === "sets" ? (
+          <div className="mt-6">
+            <AdminSetlists performer={performer} />
           </div>
         ) : null}
 

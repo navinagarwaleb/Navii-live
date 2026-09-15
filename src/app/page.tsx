@@ -32,7 +32,7 @@ export default function Home() {
         <LandingCtas />
 
         <p className="animate-rise rise-5 pt-3 text-center text-[11px] text-mist">
-          Free to start · Your page, your setlist
+          Free to start · Your page, your list
         </p>
       </section>
 

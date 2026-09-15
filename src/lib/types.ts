@@ -28,6 +28,25 @@ export type Song = {
   created_at?: string;
 };
 
+export type Setlist = {
+  id: string;
+  performer_id: string;
+  name: string;
+  icon?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  song_count?: number;
+};
+
+export type SetlistSong = {
+  id: string;
+  setlist_id: string;
+  song_id: string;
+  position: number;
+  created_at?: string;
+  song?: Song | null;
+};
+
 export type RequestStatus = "pending" | "accepted" | "rejected" | "played";
 
 export type SongRequest = {

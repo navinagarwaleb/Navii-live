@@ -74,7 +74,10 @@ export default async function AdminPage({
     (host ? `${proto}://${host}` : "http://localhost:3000");
 
   const tab =
-    params.tab === "live" || params.tab === "songs" || params.tab === "tips"
+    params.tab === "live" ||
+    params.tab === "songs" ||
+    params.tab === "sets" ||
+    params.tab === "tips"
       ? params.tab
       : "queue";
 
