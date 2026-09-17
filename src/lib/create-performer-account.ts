@@ -47,8 +47,10 @@ export async function signInWithGoogle() {
   if (error) throw new Error(error.message);
 }
 
-function authCallbackUrl() {
-  return `${window.location.origin}/auth/callback`;
+function authConfirmUrl(next?: string) {
+  const url = new URL("/auth/confirm", window.location.origin);
+  if (next) url.searchParams.set("next", next);
+  return url.toString();
 }
 
 export type SignUpResult =
@@ -60,15 +62,14 @@ async function signUpRaw(email: string, password: string) {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  // Use the same allowlisted path as Google OAuth (`/auth/callback`).
-  // Do NOT append `?next=/setup` — Supabase redirect allowlists often match
-  // exact URLs, and a query-string variant is rejected (falls back to Site URL).
-  // The callback already sends users without a performer row to /setup.
+  // /auth/confirm (not /auth/callback?next=/setup) — query-string redirect
+  // variants are often missing from the Supabase allowlist, and Site URL may
+  // still point at the reset-password path from earlier config changes.
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
     options: {
-      emailRedirectTo: authCallbackUrl(),
+      emailRedirectTo: authConfirmUrl(),
     },
   });
 
@@ -106,7 +107,7 @@ export async function resendSignupConfirmation(email: string) {
     type: "signup",
     email: email.trim(),
     options: {
-      emailRedirectTo: authCallbackUrl(),
+      emailRedirectTo: authConfirmUrl(),
     },
   });
 
@@ -170,9 +171,8 @@ export async function sendPasswordReset(identifier: string) {
     throw new Error(payload.error ?? "Could not send reset email.");
   }
 
-  const origin = window.location.origin;
   const { error } = await supabase.auth.resetPasswordForEmail(payload.email, {
-    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
+    redirectTo: authConfirmUrl("/reset-password"),
   });
 
   if (error) {

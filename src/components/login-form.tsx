@@ -16,6 +16,10 @@ import {
 } from "@/lib/create-performer-account";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
+function paramsErrorIsReset(message?: string | null) {
+  return /password reset link/i.test(message ?? "");
+}
+
 export function LoginForm({
   initialError,
 }: {
@@ -23,7 +27,7 @@ export function LoginForm({
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "forgot">(
-    initialError?.toLowerCase().includes("reset") ? "forgot" : "signin",
+    paramsErrorIsReset(initialError) ? "forgot" : "signin",
   );
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");

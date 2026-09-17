@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 
 /**
  * Handles auth redirects that land on `/` (common when Supabase Site URL is
- * the app origin). Forwards PKCE `code` to `/auth/callback`, and maps auth
- * errors to the login page.
+ * the app origin). Forwards PKCE `code` / token_hash to `/auth/confirm`.
  */
 export function AuthErrorRedirect() {
   const router = useRouter();
@@ -16,14 +15,14 @@ export function AuthErrorRedirect() {
     const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
     const hashParams = new URLSearchParams(hash);
 
-    // Site URL fallback often drops users on `/` with ?code= — exchange it.
     const code = url.searchParams.get("code");
-    if (code) {
-      const callback = new URL("/auth/callback", url.origin);
+    const tokenHash = url.searchParams.get("token_hash");
+    if (code || tokenHash) {
+      const confirm = new URL("/auth/confirm", url.origin);
       url.searchParams.forEach((value, key) => {
-        callback.searchParams.set(key, value);
+        confirm.searchParams.set(key, value);
       });
-      router.replace(`${callback.pathname}${callback.search}`);
+      router.replace(`${confirm.pathname}${confirm.search}`);
       return;
     }
 

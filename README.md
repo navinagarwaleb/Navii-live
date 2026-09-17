@@ -18,18 +18,43 @@ The audience flow is at `/request`; the PIN-protected queue is at `/admin`.
 Without Supabase credentials, `/request` uses demo songs and simulates a
 successful request so the UI can be previewed.
 
-## Supabase Auth redirect URLs
+## Supabase Auth (required for signup / reset emails)
 
-In the Supabase dashboard → Authentication → URL Configuration:
+### URL Configuration
 
-- **Site URL** should be the app origin only (e.g. `https://your-domain.com`),
-  not `/reset-password` or any deep link.
-- **Redirect URLs** must include at least:
-  - `https://your-domain.com/auth/callback` (signup confirm + Google OAuth)
-  - `https://your-domain.com/auth/callback?next=/reset-password` (password reset)
+Authentication → URL Configuration:
 
-Signup confirmation uses the same `/auth/callback` path as Google OAuth. Do not
-point the Confirm signup email template at `/reset-password`.
+- **Site URL** = app origin only, e.g. `https://your-domain.com`
+  - Do **not** set this to `/reset-password` or
+    `/auth/callback?next=/reset-password`. That breaks signup confirmation.
+- **Redirect URLs** must include:
+  - `https://your-domain.com/auth/callback` (Google OAuth)
+  - `https://your-domain.com/auth/confirm` (email signup confirm)
+  - `https://your-domain.com/auth/confirm?next=/reset-password` (password reset)
+  - Optional preview wildcard: `https://*.vercel.app/**`
+
+### Confirm signup email template
+
+Authentication → Email Templates → **Confirm signup** — set the CTA link to:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}">
+  Confirm your email
+</a>
+```
+
+### Reset password email template
+
+Authentication → Email Templates → **Reset password**:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
+  Reset password
+</a>
+```
+
+`token_hash` confirmation works across devices/browsers (unlike PKCE `?code=`
+links that require the same browser that started signup).
 
 ## Important security note
 
