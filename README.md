@@ -18,6 +18,19 @@ The audience flow is at `/request`; the PIN-protected queue is at `/admin`.
 Without Supabase credentials, `/request` uses demo songs and simulates a
 successful request so the UI can be previewed.
 
+## Supabase Auth redirect URLs
+
+In the Supabase dashboard → Authentication → URL Configuration:
+
+- **Site URL** should be the app origin only (e.g. `https://your-domain.com`),
+  not `/reset-password` or any deep link.
+- **Redirect URLs** must include at least:
+  - `https://your-domain.com/auth/callback` (signup confirm + Google OAuth)
+  - `https://your-domain.com/auth/callback?next=/reset-password` (password reset)
+
+Signup confirmation uses the same `/auth/callback` path as Google OAuth. Do not
+point the Confirm signup email template at `/reset-password`.
+
 ## Important security note
 
 The included anonymous `SELECT` policy is required for a browser-based

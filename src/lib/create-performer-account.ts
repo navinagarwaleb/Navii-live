@@ -52,11 +52,15 @@ export async function signUpWithEmail(email: string, password: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const origin = window.location.origin;
+  // Use the same allowlisted path as Google OAuth (`/auth/callback`).
+  // Do NOT append `?next=/setup` — Supabase redirect allowlists often match
+  // exact URLs, and a query-string variant is rejected (falls back to Site URL).
+  // The callback already sends users without a performer row to /setup.
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/setup")}`,
+      emailRedirectTo: `${origin}/auth/callback`,
     },
   });
 

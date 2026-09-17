@@ -30,6 +30,17 @@ export function ResetPasswordForm() {
 
     let active = true;
 
+    // If Site URL / allowlist sends the PKCE code here directly, hand it to
+    // the server callback so cookies are set the same way as other auth flows.
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (code) {
+      const callback = new URL("/auth/callback", window.location.origin);
+      callback.searchParams.set("code", code);
+      callback.searchParams.set("next", "/reset-password");
+      window.location.replace(`${callback.pathname}${callback.search}`);
+      return;
+    }
+
     // Hash-based recovery links (legacy) land with tokens in the URL fragment.
     const {
       data: { subscription },

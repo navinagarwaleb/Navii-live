@@ -14,7 +14,9 @@ export default async function LoginPage({
         ? "Auth isn’t configured. Check your Supabase env vars."
         : params.error === "reset_expired"
           ? "That password reset link is invalid or has expired. Request a new one below."
-          : null;
+          : params.error === "confirm_expired"
+            ? "That email confirmation link is invalid or has expired. Sign up again or request a new link."
+            : null;
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-col flex-col px-5 py-5 sm:px-8 sm:py-12">

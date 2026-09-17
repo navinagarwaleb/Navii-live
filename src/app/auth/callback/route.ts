@@ -6,6 +6,25 @@ function safeNextPath(value: string | null) {
   return value;
 }
 
+function authFailureRedirect(
+  origin: string,
+  next: string | null,
+  reason: "expired" | "auth" | "config" = "auth",
+) {
+  if (reason === "config") {
+    return NextResponse.redirect(`${origin}/login?error=config`);
+  }
+  // Only label password-reset failures as reset_expired.
+  const isReset = next === "/reset-password";
+  const error =
+    reason === "expired" && isReset
+      ? "reset_expired"
+      : reason === "expired"
+        ? "confirm_expired"
+        : "auth";
+  return NextResponse.redirect(`${origin}/login?error=${error}`);
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -21,15 +40,13 @@ export async function GET(request: Request) {
       /otp_expired|expired|access_denied|invalid/i.test(
         searchParams.get("error_description") ?? "",
       );
-    return NextResponse.redirect(
-      `${origin}/login?error=${expired ? "reset_expired" : "auth"}`,
-    );
+    return authFailureRedirect(origin, next, expired ? "expired" : "auth");
   }
 
   if (code) {
     const supabase = await createSupabaseServerClient();
     if (!supabase) {
-      return NextResponse.redirect(`${origin}/login?error=config`);
+      return authFailureRedirect(origin, next, "config");
     }
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -57,8 +74,8 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.redirect(`${origin}/login?error=reset_expired`);
+    return authFailureRedirect(origin, next, "expired");
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+  return authFailureRedirect(origin, next, "auth");
 }
