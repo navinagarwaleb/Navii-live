@@ -47,11 +47,19 @@ export async function signInWithGoogle() {
   if (error) throw new Error(error.message);
 }
 
-export async function signUpWithEmail(email: string, password: string) {
+function authCallbackUrl() {
+  return `${window.location.origin}/auth/callback`;
+}
+
+export type SignUpResult =
+  | { status: "session"; data: Awaited<ReturnType<typeof signUpRaw>> }
+  | { status: "confirm_email"; email: string }
+  | { status: "already_registered"; email: string };
+
+async function signUpRaw(email: string, password: string) {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const origin = window.location.origin;
   // Use the same allowlisted path as Google OAuth (`/auth/callback`).
   // Do NOT append `?next=/setup` — Supabase redirect allowlists often match
   // exact URLs, and a query-string variant is rejected (falls back to Site URL).
@@ -60,12 +68,56 @@ export async function signUpWithEmail(email: string, password: string) {
     email: email.trim(),
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: authCallbackUrl(),
     },
   });
 
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+): Promise<SignUpResult> {
+  const trimmed = email.trim();
+  const data = await signUpRaw(trimmed, password);
+
+  if (data.session) {
+    return { status: "session", data };
+  }
+
+  // Supabase returns a fake user with empty identities when the email is
+  // already registered (and confirmation is required) — no email is sent.
+  const identities = data.user?.identities ?? [];
+  if (data.user && identities.length === 0) {
+    return { status: "already_registered", email: trimmed };
+  }
+
+  return { status: "confirm_email", email: trimmed };
+}
+
+/** Resend the signup confirmation email (unconfirmed accounts only). */
+export async function resendSignupConfirmation(email: string) {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: email.trim(),
+    options: {
+      emailRedirectTo: authCallbackUrl(),
+    },
+  });
+
+  if (error) {
+    if (/rate limit|too many|over_email/i.test(error.message)) {
+      throw new Error(
+        "Too many emails were sent. Wait a few minutes, then try again.",
+      );
+    }
+    throw new Error(error.message);
+  }
 }
 
 export async function signInWithEmail(email: string, password: string) {

@@ -10,7 +10,10 @@ import {
 } from "@/components/google-sign-in-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { signUpWithEmail } from "@/lib/create-performer-account";
+import {
+  resendSignupConfirmation,
+  signUpWithEmail,
+} from "@/lib/create-performer-account";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 export function SignupForm() {
@@ -23,6 +26,9 @@ export function SignupForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [awaitingVerification, setAwaitingVerification] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   useEffect(() => {
     if (!awaitingVerification) return;
@@ -45,6 +51,7 @@ export function SignupForm() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");
+    setResendMessage("");
 
     if (!email.trim()) {
       setError("Enter your email.");
@@ -61,15 +68,23 @@ export function SignupForm() {
 
     setSubmitting(true);
     try {
-      const data = await signUpWithEmail(email, password);
+      const result = await signUpWithEmail(email, password);
 
-      // Email confirmation disabled → session available immediately
-      if (data.session) {
+      if (result.status === "session") {
         router.replace("/setup");
         router.refresh();
         return;
       }
 
+      if (result.status === "already_registered") {
+        setError(
+          "An account with this email already exists. Sign in, or use Forgot password if you never finished setup.",
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      setPendingEmail(result.email);
       setAwaitingVerification(true);
       setSubmitting(false);
     } catch (submitError) {
@@ -79,6 +94,25 @@ export function SignupForm() {
           : "Could not create your account.",
       );
       setSubmitting(false);
+    }
+  }
+
+  async function onResend() {
+    if (!pendingEmail || resending) return;
+    setResending(true);
+    setResendMessage("");
+    setError("");
+    try {
+      await resendSignupConfirmation(pendingEmail);
+      setResendMessage("Confirmation email sent again. Check your inbox and spam.");
+    } catch (resendError) {
+      setError(
+        resendError instanceof Error
+          ? resendError.message
+          : "Could not resend confirmation email.",
+      );
+    } finally {
+      setResending(false);
     }
   }
 
@@ -93,7 +127,7 @@ export function SignupForm() {
         </h1>
         <p className="mt-2 max-w-sm text-sm leading-snug text-mist sm:mt-3 sm:text-[0.95rem] sm:leading-[1.55]">
           We sent a verification link to{" "}
-          <strong className="font-semibold text-ink">{email.trim()}</strong>.
+          <strong className="font-semibold text-ink">{pendingEmail}</strong>.
           Open it to finish setup and claim your page.
         </p>
         <div className="mt-5 rounded-2xl border border-border bg-field p-5 text-center shadow-xs sm:mt-8 sm:p-6">
@@ -104,7 +138,46 @@ export function SignupForm() {
             Keep this tab open. We’ll redirect you automatically once you’re
             signed in.
           </p>
+          {error ? (
+            <p
+              role="alert"
+              className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
+            >
+              {error}
+            </p>
+          ) : null}
+          {resendMessage ? (
+            <p className="mt-4 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-800">
+              {resendMessage}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="mt-5 min-h-[48px] w-full rounded-full sm:min-h-[52px]"
+            disabled={resending}
+            onClick={() => void onResend()}
+          >
+            {resending ? <Loader2 size={16} className="animate-spin" /> : null}
+            Resend confirmation email
+          </Button>
         </div>
+        <p className="mt-4 text-center text-sm text-mist">
+          Wrong email?{" "}
+          <button
+            type="button"
+            className="font-semibold text-deep-blue underline-offset-2 hover:underline"
+            onClick={() => {
+              setAwaitingVerification(false);
+              setPendingEmail("");
+              setResendMessage("");
+              setError("");
+            }}
+          >
+            Go back
+          </button>
+        </p>
       </div>
     );
   }
@@ -212,7 +285,15 @@ export function SignupForm() {
             role="alert"
             className="rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
           >
-            {error}
+            {error}{" "}
+            {/already exists/i.test(error) ? (
+              <Link
+                href="/login"
+                className="underline underline-offset-2 hover:text-ink"
+              >
+                Sign in
+              </Link>
+            ) : null}
           </p>
         ) : null}
 
