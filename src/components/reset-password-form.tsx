@@ -30,6 +30,23 @@ export function ResetPasswordForm() {
 
     let active = true;
 
+    // If Site URL / allowlist sends the PKCE code here directly, hand it to
+    // the confirm route so cookies are set the same way as other auth flows.
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const tokenHash = params.get("token_hash");
+    if (code || tokenHash) {
+      const confirm = new URL("/auth/confirm", window.location.origin);
+      params.forEach((value, key) => {
+        confirm.searchParams.set(key, value);
+      });
+      if (!confirm.searchParams.get("next")) {
+        confirm.searchParams.set("next", "/reset-password");
+      }
+      window.location.replace(`${confirm.pathname}${confirm.search}`);
+      return;
+    }
+
     // Hash-based recovery links (legacy) land with tokens in the URL fragment.
     const {
       data: { subscription },

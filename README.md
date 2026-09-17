@@ -18,6 +18,44 @@ The audience flow is at `/request`; the PIN-protected queue is at `/admin`.
 Without Supabase credentials, `/request` uses demo songs and simulates a
 successful request so the UI can be previewed.
 
+## Supabase Auth (required for signup / reset emails)
+
+### URL Configuration
+
+Authentication → URL Configuration:
+
+- **Site URL** = app origin only, e.g. `https://your-domain.com`
+  - Do **not** set this to `/reset-password` or
+    `/auth/callback?next=/reset-password`. That breaks signup confirmation.
+- **Redirect URLs** must include:
+  - `https://your-domain.com/auth/callback` (Google OAuth)
+  - `https://your-domain.com/auth/confirm` (email signup confirm)
+  - `https://your-domain.com/auth/confirm?next=/reset-password` (password reset)
+  - Optional preview wildcard: `https://*.vercel.app/**`
+
+### Confirm signup email template
+
+Authentication → Email Templates → **Confirm signup** — set the CTA link to:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}">
+  Confirm your email
+</a>
+```
+
+### Reset password email template
+
+Authentication → Email Templates → **Reset password**:
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
+  Reset password
+</a>
+```
+
+`token_hash` confirmation works across devices/browsers (unlike PKCE `?code=`
+links that require the same browser that started signup).
+
 ## Important security note
 
 The included anonymous `SELECT` policy is required for a browser-based

@@ -1,12 +1,16 @@
-import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { type NextRequest } from "next/server";
+import {
+  authFailureRedirect,
+  createSupabaseAuthRouteClient,
+  redirectAfterAuth,
+  safeNextPath,
+} from "@/lib/supabase-auth-route";
 
-function safeNextPath(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
-  return value;
-}
-
-export async function GET(request: Request) {
+/**
+ * PKCE / OAuth callback. Used by Google sign-in and by email links that still
+ * redirect with ?code= (legacy ConfirmationURL flow).
+ */
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = safeNextPath(searchParams.get("next"));
@@ -21,44 +25,23 @@ export async function GET(request: Request) {
       /otp_expired|expired|access_denied|invalid/i.test(
         searchParams.get("error_description") ?? "",
       );
-    return NextResponse.redirect(
-      `${origin}/login?error=${expired ? "reset_expired" : "auth"}`,
-    );
+    return authFailureRedirect(origin, next, expired ? "expired" : "auth");
   }
 
-  if (code) {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) {
-      return NextResponse.redirect(`${origin}/login?error=config`);
-    }
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      if (next) {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data: performer } = await supabase
-          .from("performers")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (!performer) {
-          return NextResponse.redirect(`${origin}/setup`);
-        }
-
-        return NextResponse.redirect(`${origin}/admin`);
-      }
-    }
-
-    return NextResponse.redirect(`${origin}/login?error=reset_expired`);
+  if (!code) {
+    return authFailureRedirect(origin, next, "auth");
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+  const client = createSupabaseAuthRouteClient(request);
+  if (!client) {
+    return authFailureRedirect(origin, next, "config");
+  }
+
+  const { error } = await client.supabase.auth.exchangeCodeForSession(code);
+  if (error) {
+    return authFailureRedirect(origin, next, "expired");
+  }
+
+  const redirect = await redirectAfterAuth(origin, client.supabase, next);
+  return client.applyCookies(redirect);
 }
