@@ -19,7 +19,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("requests")
-    .select("*")
+    .select("*, song:songs(artwork_url)")
     .in("status", ["pending", "accepted", "played", "rejected"])
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -29,5 +29,19 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ requests: data ?? [] });
+  const requests = (
+    (data as Array<{
+      artwork_url?: string | null;
+      song?: { artwork_url?: string | null } | null;
+      [key: string]: unknown;
+    }>) ?? []
+  ).map((row) => {
+    const { song, ...rest } = row;
+    return {
+      ...rest,
+      artwork_url: rest.artwork_url ?? song?.artwork_url ?? null,
+    };
+  });
+
+  return NextResponse.json({ requests });
 }

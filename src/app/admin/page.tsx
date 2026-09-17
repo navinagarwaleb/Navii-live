@@ -52,7 +52,7 @@ export default async function AdminPage({
   if (admin) {
     const { data, error } = await admin
       .from("requests")
-      .select("*")
+      .select("*, song:songs(artwork_url)")
       .eq("performer_id", performer.id)
       .in("status", ["pending", "accepted", "played", "rejected"])
       .order("created_at", { ascending: false })
@@ -62,7 +62,15 @@ export default async function AdminPage({
       console.error("Initial admin requests query failed:", error);
       initialError = error.message;
     } else {
-      initialRequests = (data as SongRequest[]) ?? [];
+      initialRequests = ((data as Array<
+        SongRequest & { song?: { artwork_url?: string | null } | null }
+      >) ?? []).map((row) => {
+        const { song, ...rest } = row;
+        return {
+          ...rest,
+          artwork_url: rest.artwork_url ?? song?.artwork_url ?? null,
+        };
+      });
     }
   }
 

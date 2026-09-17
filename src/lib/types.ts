@@ -64,4 +64,5 @@ export type SongRequest = {
   status: RequestStatus;
   performer_id?: string | null;
   created_at: string;
+  artwork_url?: string | null;
 };

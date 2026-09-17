@@ -48,6 +48,20 @@ const statusStyles: Record<RequestStatus, string> = {
 
 type AdminTab = "queue" | "live" | "songs" | "sets" | "tips";
 
+const REQUEST_SELECT = "*, song:songs(artwork_url)";
+
+type RequestJoinRow = SongRequest & {
+  song?: { artwork_url?: string | null } | null;
+};
+
+function normalizeRequest(row: RequestJoinRow): SongRequest {
+  const { song, ...rest } = row;
+  return {
+    ...rest,
+    artwork_url: rest.artwork_url ?? song?.artwork_url ?? null,
+  };
+}
+
 const TABS: { id: AdminTab; label: string; icon: typeof Music2 }[] = [
   { id: "queue", label: "Queue", icon: Radio },
   { id: "live", label: "Live", icon: QrCode },
@@ -135,9 +149,20 @@ function ActiveRequestCard({
         onClick={onToggle}
         className="flex w-full items-center gap-3 px-2.5 py-1.5 text-left transition hover:bg-white/5"
       >
-        <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
-          <Music2 size={14} />
-        </span>
+        {item.artwork_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.artwork_url}
+            alt=""
+            width={44}
+            height={44}
+            className="size-11 shrink-0 rounded-md object-cover"
+          />
+        ) : (
+          <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
+            <Music2 size={14} />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
             {item.song_title}
@@ -235,9 +260,20 @@ function HistoryRequestRow({
 }) {
   return (
     <div className="flex items-center gap-3 px-2.5 py-1.5">
-      <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
-        <Music2 size={14} />
-      </span>
+      {item.artwork_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.artwork_url}
+          alt=""
+          width={44}
+          height={44}
+          className="size-11 shrink-0 rounded-md object-cover"
+        />
+      ) : (
+        <span className="grid size-11 shrink-0 place-items-center rounded-md bg-white/10 text-[#A8A29E]">
+          <Music2 size={14} />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold leading-snug text-[#FAFAF9]">
           {item.song_title}
@@ -333,10 +369,21 @@ export function AdminDashboard({
         },
         (payload) => {
           const incoming = payload.new as SongRequest;
-          setRequests((current) => [
-            incoming,
-            ...current.filter((item) => item.id !== incoming.id),
-          ]);
+          void (async () => {
+            let artwork_url: string | null = null;
+            if (incoming.song_id && supabase) {
+              const { data } = await supabase
+                .from("songs")
+                .select("artwork_url")
+                .eq("id", incoming.song_id)
+                .maybeSingle();
+              artwork_url = data?.artwork_url ?? null;
+            }
+            setRequests((current) => [
+              { ...incoming, artwork_url },
+              ...current.filter((item) => item.id !== incoming.id),
+            ]);
+          })();
         },
       )
       .on(
@@ -349,12 +396,16 @@ export function AdminDashboard({
         },
         (payload) => {
           const incoming = payload.new as SongRequest;
-          setRequests((current) =>
-            sortRequests([
-              incoming,
+          setRequests((current) => {
+            const previous = current.find((item) => item.id === incoming.id);
+            return sortRequests([
+              {
+                ...incoming,
+                artwork_url: previous?.artwork_url ?? null,
+              },
               ...current.filter((item) => item.id !== incoming.id),
-            ]),
-          );
+            ]);
+          });
         },
       )
       .on(
@@ -407,7 +458,7 @@ export function AdminDashboard({
       try {
         const { data, error: pollError } = await client
           .from("requests")
-          .select("*")
+          .select(REQUEST_SELECT)
           .eq("performer_id", performer.id)
           .in("status", ["pending", "accepted", "played", "rejected"])
           .order("created_at", { ascending: false })
@@ -415,7 +466,11 @@ export function AdminDashboard({
 
         if (pollError) throw pollError;
         if (active) {
-          setRequests(sortRequests((data as SongRequest[]) ?? []));
+          setRequests(
+            sortRequests(
+              ((data as RequestJoinRow[]) ?? []).map(normalizeRequest),
+            ),
+          );
         }
       } catch (pollError) {
         console.error("Admin polling fallback failed:", pollError);
