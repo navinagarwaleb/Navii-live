@@ -15,7 +15,7 @@ export default async function LoginPage({
         : params.error === "reset_expired"
           ? "That password reset link is invalid or has expired. Request a new one below."
           : params.error === "confirm_expired"
-            ? "That email confirmation link is invalid or has expired. Sign up again or request a new link."
+            ? "That email confirmation link is invalid or has expired. Open a fresh link in the same browser you used to sign up, or request a new one."
             : null;
 
   return (

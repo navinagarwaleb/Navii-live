@@ -25,6 +25,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  FileText,
   GripVertical,
   Loader2,
   Pencil,
@@ -35,6 +36,7 @@ import {
   X,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PerformanceLyricsViewer } from "@/components/performance-lyrics-viewer";
 import { Input } from "@/components/ui/input";
 import {
   DEFAULT_SETLIST_COLOR,
@@ -52,11 +54,13 @@ import {
 } from "@/lib/setlist-icons";
 import { useEphemeralMessage } from "@/hooks/use-ephemeral-message";
 import { adminPrimaryChipClass } from "@/lib/admin-ui";
+import { isLyricsEmpty } from "@/lib/lyrics";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { Performer, Setlist, SetlistSong, Song } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const SONG_SELECT = "id,title,artist,active,tags,artwork_url,performer_id,created_at";
+const SONG_SELECT =
+  "id,title,artist,active,tags,artwork_url,lyrics,performer_id,created_at";
 const SETLIST_SELECT =
   "id,performer_id,name,icon,icon_color,position,is_performing,created_at,updated_at";
 
@@ -294,6 +298,7 @@ function SortableSetlistSongRow({
   togglingPerformed,
   onRemove,
   onTogglePerformed,
+  onOpenLyrics,
 }: {
   entry: SetlistSong;
   index: number;
@@ -304,10 +309,12 @@ function SortableSetlistSongRow({
   togglingPerformed: boolean;
   onRemove: () => void;
   onTogglePerformed: () => void;
+  onOpenLyrics: () => void;
 }) {
   const song = entry.song;
   const performed = Boolean(entry.performed);
   const settled = performed || Boolean(skipped);
+  const hasLyrics = Boolean(song?.lyrics && !isLyricsEmpty(song.lyrics));
   const {
     attributes,
     listeners,
@@ -378,6 +385,23 @@ function SortableSetlistSongRow({
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+        <button
+          type="button"
+          aria-label={
+            hasLyrics
+              ? `View lyrics & chords for ${song?.title ?? "song"}`
+              : `Open lyrics & chords for ${song?.title ?? "song"} (none saved)`
+          }
+          onClick={onOpenLyrics}
+          className={cn(
+            "grid size-9 shrink-0 place-items-center rounded-full border transition",
+            hasLyrics
+              ? "border-[#E4C29B]/50 bg-[#E4C29B]/15 text-[#E4C29B] hover:bg-[#E4C29B]/25"
+              : "border-white/15 text-[#78716C] hover:bg-white/10 hover:text-[#A8A29E]",
+          )}
+        >
+          <FileText size={15} />
+        </button>
         {performing ? (
           skipped ? (
             <button
@@ -491,6 +515,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
     [],
   );
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [lyricsEntryId, setLyricsEntryId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -609,6 +634,25 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
       pendingEntries,
     ],
   );
+
+  const lyricsEntries = useMemo(() => {
+    if (!lyricsEntryId) return [];
+    if (activeSetlist?.is_performing) {
+      if (pendingEntries.some((entry) => entry.id === lyricsEntryId)) {
+        return pendingEntries;
+      }
+      if (historyEntries.some((entry) => entry.id === lyricsEntryId)) {
+        return historyEntries;
+      }
+    }
+    return visibleEntries;
+  }, [
+    activeSetlist?.is_performing,
+    historyEntries,
+    lyricsEntryId,
+    pendingEntries,
+    visibleEntries,
+  ]);
 
   const memberSongIds = useMemo(
     () =>
@@ -1868,6 +1912,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                             togglingPerformed={togglingPerformedId === entry.id}
                             onRemove={() => void removeSongFromSetlist(entry)}
                             onTogglePerformed={() => void togglePerformed(entry)}
+                            onOpenLyrics={() => setLyricsEntryId(entry.id)}
                           />
                         ))
                       : null}
@@ -1888,6 +1933,9 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                       }
                       onTogglePerformed={() =>
                         void togglePerformed(lastActionedEntry)
+                      }
+                      onOpenLyrics={() =>
+                        setLyricsEntryId(lastActionedEntry.id)
                       }
                     />
                   </SortableContext>
@@ -1928,6 +1976,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                         togglingPerformed={togglingPerformedId === entry.id}
                         onRemove={() => void removeSongFromSetlist(entry)}
                         onTogglePerformed={() => void togglePerformed(entry)}
+                        onOpenLyrics={() => setLyricsEntryId(entry.id)}
                       />
                     ))}
                   </div>
@@ -1964,6 +2013,7 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
                     togglingPerformed={togglingPerformedId === entry.id}
                     onRemove={() => requestRemoveSong(entry)}
                     onTogglePerformed={() => void togglePerformed(entry)}
+                    onOpenLyrics={() => setLyricsEntryId(entry.id)}
                   />
                 ))}
               </div>
@@ -1973,6 +2023,14 @@ export function AdminSetlists({ performer }: { performer: Performer }) {
 
         {createModal}
         {pickerModal}
+
+        <PerformanceLyricsViewer
+          open={Boolean(lyricsEntryId)}
+          entries={lyricsEntries}
+          activeEntryId={lyricsEntryId}
+          onActiveEntryIdChange={setLyricsEntryId}
+          onClose={() => setLyricsEntryId(null)}
+        />
 
         <ConfirmDialog
           open={Boolean(confirmRemoveEntry)}

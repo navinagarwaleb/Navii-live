@@ -24,6 +24,7 @@ export type Song = {
   active?: boolean;
   tags?: string[];
   artwork_url?: string | null;
+  lyrics?: string | null;
   performer_id?: string | null;
   created_at?: string;
 };

@@ -121,6 +121,50 @@ export async function resendSignupConfirmation(email: string) {
   }
 }
 
+/** Verify the 6-digit code from the signup confirmation email. */
+export async function verifySignupOtp(email: string, token: string) {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const cleaned = token.replace(/\s/g, "");
+  if (!/^\d{6,8}$/.test(cleaned)) {
+    throw new Error("Enter the 6-digit code from your email.");
+  }
+
+  // Password signup confirmation tokens use type "signup". "email" also
+  // covers signup/magic-link in newer Auth versions — try signup first.
+  let { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim(),
+    token: cleaned,
+    type: "signup",
+  });
+
+  if (error) {
+    const retry = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: cleaned,
+      type: "email",
+    });
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error) {
+    if (/expired|invalid|otp/i.test(error.message)) {
+      throw new Error(
+        "That code is invalid or expired. Request a new one and try again.",
+      );
+    }
+    throw new Error(error.message);
+  }
+
+  if (!data.session) {
+    throw new Error("Could not verify that code. Try again.");
+  }
+
+  return data;
+}
+
 export async function signInWithEmail(email: string, password: string) {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase is not configured.");

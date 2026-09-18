@@ -35,13 +35,25 @@ Authentication → URL Configuration:
 
 ### Confirm signup email template
 
-Authentication → Email Templates → **Confirm signup** — set the CTA link to:
+Keep **Confirm email** enabled for OTP signup.
+
+Authentication → Email Templates → **Confirm signup** — include the code in
+the body (required for typed OTP):
 
 ```html
-<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}">
-  Confirm your email
-</a>
+<h2>Confirm your email</h2>
+<p>Your verification code is: <strong>{{ .Token }}</strong></p>
+<p>Or confirm with this link:</p>
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}">
+    Confirm your email
+  </a>
+</p>
 ```
+
+If you cannot edit templates and the email has no 6-digit code, typed OTP will
+not work — use Confirm email Off, or add custom SMTP + a template that shows
+`{{ .Token }}`.
 
 ### Reset password email template
 
@@ -53,8 +65,8 @@ Authentication → Email Templates → **Reset password**:
 </a>
 ```
 
-`token_hash` confirmation works across devices/browsers (unlike PKCE `?code=`
-links that require the same browser that started signup).
+`token_hash` confirmation works across devices/browsers. Default PKCE links do
+not. Typed `{{ .Token }}` OTP also works across devices.
 
 ## Important security note
 

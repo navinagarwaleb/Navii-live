@@ -163,3 +163,49 @@ input {
     transform: none;
   }
 }
+
+/* TipTap lyrics editor (admin song modal) */
+.lyrics-editor-content p {
+  margin: 0.2em 0;
+}
+
+.lyrics-editor-content p.is-editor-empty:first-child::before {
+  color: #78716c;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.lyrics-editor-content mark {
+  border-radius: 0.15em;
+  padding: 0 0.1em;
+}
+
+.admin-shell .lyrics-editor-content ::selection {
+  background: #f2b76e;
+  color: #0d1b2e;
+}
+
+.lyrics-readonly {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.lyrics-readonly p {
+  margin: 0.35em 0;
+}
+
+.lyrics-readonly mark {
+  border-radius: 0.15em;
+  padding: 0 0.12em;
+}
+
+@media (min-width: 640px) {
+  .lyrics-readonly {
+    font-size: 1.15rem;
+    line-height: 1.7;
+  }
+}
+

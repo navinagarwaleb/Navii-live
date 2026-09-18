@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import {
   resendSignupConfirmation,
   signUpWithEmail,
+  verifySignupOtp,
 } from "@/lib/create-performer-account";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -27,6 +28,8 @@ export function SignupForm() {
   const [error, setError] = useState("");
   const [awaitingVerification, setAwaitingVerification] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
 
@@ -85,6 +88,7 @@ export function SignupForm() {
       }
 
       setPendingEmail(result.email);
+      setOtp("");
       setAwaitingVerification(true);
       setSubmitting(false);
     } catch (submitError) {
@@ -97,6 +101,27 @@ export function SignupForm() {
     }
   }
 
+  async function onVerifyOtp(event: FormEvent) {
+    event.preventDefault();
+    if (!pendingEmail || verifyingOtp) return;
+
+    setVerifyingOtp(true);
+    setError("");
+    setResendMessage("");
+    try {
+      await verifySignupOtp(pendingEmail, otp);
+      router.replace("/setup");
+      router.refresh();
+    } catch (verifyError) {
+      setError(
+        verifyError instanceof Error
+          ? verifyError.message
+          : "Could not verify that code.",
+      );
+      setVerifyingOtp(false);
+    }
+  }
+
   async function onResend() {
     if (!pendingEmail || resending) return;
     setResending(true);
@@ -104,7 +129,8 @@ export function SignupForm() {
     setError("");
     try {
       await resendSignupConfirmation(pendingEmail);
-      setResendMessage("Confirmation email sent again. Check your inbox and spam.");
+      setResendMessage("New code sent. Check your inbox and spam.");
+      setOtp("");
     } catch (resendError) {
       setError(
         resendError instanceof Error
@@ -123,34 +149,78 @@ export function SignupForm() {
           Almost there
         </p>
         <h1 className="mt-2 font-serif text-[clamp(1.5rem,5.5vw,2.25rem)] leading-[1.2] font-semibold tracking-[-0.01em] text-deep-blue sm:mt-4">
-          Check your email
+          Enter your code
         </h1>
         <p className="mt-2 max-w-sm text-sm leading-snug text-mist sm:mt-3 sm:text-[0.95rem] sm:leading-[1.55]">
-          We sent a verification link to{" "}
+          We sent a 6-digit code to{" "}
           <strong className="font-semibold text-ink">{pendingEmail}</strong>.
-          Open it to finish setup and claim your page.
+          Enter it below to finish signup.
         </p>
-        <div className="mt-5 rounded-2xl border border-border bg-field p-5 text-center shadow-xs sm:mt-8 sm:p-6">
-          <span className="mx-auto grid size-12 place-items-center rounded-full bg-selected text-[#B8862F] sm:size-14">
-            <Mail size={22} />
-          </span>
-          <p className="mt-4 text-sm leading-relaxed text-mist sm:mt-5">
-            Keep this tab open. We’ll redirect you automatically once you’re
-            signed in.
-          </p>
+
+        <form
+          onSubmit={(event) => void onVerifyOtp(event)}
+          className="mt-5 grid gap-3.5 sm:mt-8 sm:gap-4"
+        >
+          <div>
+            <label
+              htmlFor="signup-otp"
+              className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
+            >
+              Verification code
+            </label>
+            <Input
+              id="signup-otp"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              pattern="[0-9]*"
+              maxLength={8}
+              required
+              value={otp}
+              onChange={(event) => {
+                const next = event.target.value.replace(/\D/g, "").slice(0, 8);
+                setOtp(next);
+              }}
+              placeholder="123456"
+              className="text-center font-semibold tracking-[0.35em]"
+            />
+          </div>
+
           {error ? (
             <p
               role="alert"
-              className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
+              className="rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
             >
               {error}
             </p>
           ) : null}
           {resendMessage ? (
-            <p className="mt-4 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-800">
+            <p className="rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-800">
               {resendMessage}
             </p>
           ) : null}
+
+          <Button
+            type="submit"
+            size="lg"
+            className="min-h-[48px] w-full rounded-full sm:min-h-[52px]"
+            disabled={verifyingOtp || otp.length < 6}
+          >
+            {verifyingOtp ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : null}
+            Verify and continue
+          </Button>
+        </form>
+
+        <div className="mt-5 rounded-2xl border border-border bg-field p-5 text-center shadow-xs sm:p-6">
+          <span className="mx-auto grid size-12 place-items-center rounded-full bg-selected text-[#B8862F] sm:size-14">
+            <Mail size={22} />
+          </span>
+          <p className="mt-4 text-sm leading-relaxed text-mist">
+            Don’t see a code? Check spam, or resend. The code is in the signup
+            email (look for a 6-digit number).
+          </p>
           <Button
             type="button"
             variant="secondary"
@@ -160,9 +230,10 @@ export function SignupForm() {
             onClick={() => void onResend()}
           >
             {resending ? <Loader2 size={16} className="animate-spin" /> : null}
-            Resend confirmation email
+            Resend code
           </Button>
         </div>
+
         <p className="mt-4 text-center text-sm text-mist">
           Wrong email?{" "}
           <button
@@ -171,6 +242,7 @@ export function SignupForm() {
             onClick={() => {
               setAwaitingVerification(false);
               setPendingEmail("");
+              setOtp("");
               setResendMessage("");
               setError("");
             }}
@@ -195,128 +267,131 @@ export function SignupForm() {
       </p>
 
       <div className="mt-5 grid gap-4 sm:mt-8 sm:gap-5">
-      <GoogleSignInButton />
+        <GoogleSignInButton />
 
-      <AuthOrDivider />
+        <AuthOrDivider />
 
-      <form onSubmit={(event) => void onSubmit(event)} className="grid gap-3.5 sm:gap-4">
-        <div>
-          <label
-            htmlFor="signup-email"
-            className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
-          >
-            Email
-          </label>
-          <Input
-            id="signup-email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@email.com"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="signup-password"
-            className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
-          >
-            Password
-          </label>
-          <div className="relative">
-            <Input
-              id="signup-password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 6 characters"
-              className="pr-14"
-            />
-            <button
-              type="button"
-              className="absolute top-1/2 right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full text-mist transition hover:text-ink"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              onClick={() => setShowPassword((value) => !value)}
+        <form
+          onSubmit={(event) => void onSubmit(event)}
+          className="grid gap-3.5 sm:gap-4"
+        >
+          <div>
+            <label
+              htmlFor="signup-email"
+              className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label
-            htmlFor="signup-confirm"
-            className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
-          >
-            Confirm password
-          </label>
-          <div className="relative">
+              Email
+            </label>
             <Input
-              id="signup-confirm"
-              type={showConfirm ? "text" : "password"}
-              autoComplete="new-password"
+              id="signup-email"
+              type="email"
+              autoComplete="email"
               required
-              minLength={6}
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Re-enter password"
-              className="pr-14"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@email.com"
             />
-            <button
-              type="button"
-              className="absolute top-1/2 right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full text-mist transition hover:text-ink"
-              aria-label={
-                showConfirm ? "Hide confirm password" : "Show confirm password"
-              }
-              onClick={() => setShowConfirm((value) => !value)}
-            >
-              {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
           </div>
-        </div>
 
-        {error ? (
-          <p
-            role="alert"
-            className="rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
-          >
-            {error}{" "}
-            {/already exists/i.test(error) ? (
-              <Link
-                href="/login"
-                className="underline underline-offset-2 hover:text-ink"
+          <div>
+            <label
+              htmlFor="signup-password"
+              className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                id="signup-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 6 characters"
+                className="pr-14"
+              />
+              <button
+                type="button"
+                className="absolute top-1/2 right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full text-mist transition hover:text-ink"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((value) => !value)}
               >
-                Sign in
-              </Link>
-            ) : null}
-          </p>
-        ) : null}
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
 
-        <Button
-          type="submit"
-          size="lg"
-          className="min-h-[48px] w-full rounded-full sm:min-h-[52px]"
-          disabled={submitting}
-        >
-          {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
-          Create Account
-        </Button>
-      </form>
+          <div>
+            <label
+              htmlFor="signup-confirm"
+              className="mb-1.5 block text-sm font-medium text-mist sm:mb-2"
+            >
+              Confirm password
+            </label>
+            <div className="relative">
+              <Input
+                id="signup-confirm"
+                type={showConfirm ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Re-enter password"
+                className="pr-14"
+              />
+              <button
+                type="button"
+                className="absolute top-1/2 right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full text-mist transition hover:text-ink"
+                aria-label={
+                  showConfirm ? "Hide confirm password" : "Show confirm password"
+                }
+                onClick={() => setShowConfirm((value) => !value)}
+              >
+                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
 
-      <p className="text-center text-sm text-mist">
-        Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-semibold text-deep-blue underline-offset-2 hover:underline"
-        >
-          Sign in
-        </Link>
-      </p>
+          {error ? (
+            <p
+              role="alert"
+              className="rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-[#C73A2B]"
+            >
+              {error}{" "}
+              {/already exists/i.test(error) ? (
+                <Link
+                  href="/login"
+                  className="underline underline-offset-2 hover:text-ink"
+                >
+                  Sign in
+                </Link>
+              ) : null}
+            </p>
+          ) : null}
+
+          <Button
+            type="submit"
+            size="lg"
+            className="min-h-[48px] w-full rounded-full sm:min-h-[52px]"
+            disabled={submitting}
+          >
+            {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
+            Create Account
+          </Button>
+        </form>
+
+        <p className="text-center text-sm text-mist">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="font-semibold text-deep-blue underline-offset-2 hover:underline"
+          >
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );

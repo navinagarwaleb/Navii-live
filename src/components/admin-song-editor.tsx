@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowDownAZ,
   Clock3,
+  FileText,
   Loader2,
   Plus,
   Search,
@@ -15,9 +16,11 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { LyricsEditor } from "@/components/lyrics-editor";
 import { adminSettingsHref } from "@/lib/admin-nav";
 import { adminChipClass, adminSegmentClass, adminSegmentGroupClass } from "@/lib/admin-ui";
 import { useEphemeralMessage } from "@/hooks/use-ephemeral-message";
+import { isLyricsEmpty } from "@/lib/lyrics";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
 import {
   normalizeCustomTags,
@@ -44,7 +47,8 @@ type DraftSong = {
 
 type ListSort = "newest" | "alpha";
 
-const SONG_SELECT = "id,title,artist,active,tags,artwork_url,performer_id,created_at";
+const SONG_SELECT =
+  "id,title,artist,active,tags,artwork_url,lyrics,performer_id,created_at";
 
 function sortSongs(items: Song[], mode: ListSort) {
   const next = [...items];
@@ -90,6 +94,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
   const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [editCatalogTags, setEditCatalogTags] = useState<string[]>([]);
   const [selectedCustom, setSelectedCustom] = useState<string[]>([]);
+  const [editLyrics, setEditLyrics] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [pendingRemoveSong, setPendingRemoveSong] = useState<Song | null>(null);
@@ -126,10 +131,10 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
 
       if (loadError) {
         setError(
-          /artwork_url|column .* does not exist|Could not find/i.test(
+          /artwork_url|lyrics|column .* does not exist|Could not find/i.test(
             loadError.message ?? "",
           )
-            ? "Artwork column is missing. Run migration 20260914_songs_artwork_url.sql, then reload."
+            ? "Songs table is missing a column. Run the latest songs migrations in Supabase, then reload."
             : loadError.message,
         );
       } else {
@@ -283,6 +288,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
     setEditingSong(song);
     setEditCatalogTags(normalizeTags(catalog));
     setSelectedCustom(customTags.filter((tag) => songTags.has(tag)));
+    setEditLyrics(song.lyrics ?? "");
     setError("");
     setMessage("");
   }
@@ -328,22 +334,29 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
     setMessage("");
 
     const tags = normalizeTags([...editCatalogTags, ...selectedCustom]);
+    const lyrics = isLyricsEmpty(editLyrics) ? null : editLyrics;
     const { data, error: updateError } = await supabase
       .from("songs")
-      .update({ tags })
+      .update({ tags, lyrics })
       .eq("id", editingSong.id)
       .eq("performer_id", performerId)
       .select(SONG_SELECT)
       .single();
 
     if (updateError) {
-      setError(updateError.message);
+      setError(
+        /lyrics|column .* does not exist|Could not find/i.test(
+          updateError.message ?? "",
+        )
+          ? "Lyrics column is missing. Run migration 20260918_songs_lyrics.sql, then try again."
+          : updateError.message,
+      );
     } else if (data) {
       const song = data as Song;
       setSongs((current) =>
         current.map((item) => (item.id === song.id ? song : item)),
       );
-      setMessage(`Updated tags for “${song.title}”.`);
+      setMessage(`Updated “${song.title}”.`);
       setEditingSong(null);
     }
     setSavingEdit(false);
@@ -424,7 +437,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
             }}
           >
             <div
-              className="w-full max-w-md rounded-2xl border border-white/15 bg-[#1C1917] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+              className="max-h-[min(90dvh,760px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/15 bg-[#1C1917] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3">
@@ -541,6 +554,21 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                 </p>
               </div>
 
+              <div className="mt-4">
+                <p className="mb-1.5 text-xs font-bold tracking-[0.12em] text-[#A8A29E] uppercase">
+                  Lyrics & Chords
+                </p>
+                <LyricsEditor
+                  key={editingSong.id}
+                  value={editLyrics}
+                  onChange={setEditLyrics}
+                  disabled={savingEdit || removingId === editingSong.id}
+                />
+                <p className="mt-1.5 text-[11px] text-[#78716C]">
+                  Optional. Use formatting and emoji. Saved with the song.
+                </p>
+              </div>
+
               <div className="mt-5 grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -559,7 +587,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                   {savingEdit ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : null}
-                  Save tags
+                  Save
                 </button>
               </div>
 
@@ -910,6 +938,14 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                       {songSubtitle(song.artist, tags)}
                     </p>
                   </div>
+                  {song.lyrics && !isLyricsEmpty(song.lyrics) ? (
+                    <span
+                      title="Has lyrics & chords"
+                      className="grid size-7 shrink-0 place-items-center rounded-full bg-white/10 text-[#E4C29B]"
+                    >
+                      <FileText size={13} />
+                    </span>
+                  ) : null}
                   <button
                     type="button"
                     role="switch"

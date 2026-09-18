@@ -22,6 +22,7 @@ create table if not exists public.songs (
   active boolean not null default true,
   tags text[] not null default '{}',
   artwork_url text,
+  lyrics text,
   performer_id uuid references public.performers(id) on delete cascade,
   created_at timestamptz not null default now()
 );
