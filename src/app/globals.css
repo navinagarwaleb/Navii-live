@@ -197,6 +197,11 @@ input {
   margin: 0.35em 0;
 }
 
+/* Empty stanza gaps from TipTap (<p></p>) still take a line of height */
+.lyrics-readonly p:empty {
+  min-height: 1em;
+}
+
 .lyrics-readonly mark {
   border-radius: 0.15em;
   padding: 0 0.12em;

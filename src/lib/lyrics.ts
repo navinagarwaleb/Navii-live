@@ -10,11 +10,24 @@ export function isLyricsEmpty(html: string | null | undefined) {
   return text.length === 0;
 }
 
+/**
+ * TipTap/ProseMirror serializes blank Enter lines as empty `<p></p>`.
+ * Those collapse in readonly HTML; keep a `<br>` so stanza gaps stay visible.
+ */
+export function preserveLyricsBlankLines(html: string) {
+  return html.replace(
+    /<p(\s[^>]*)?>(?:\s|&nbsp;|\u200B)*<\/p>/gi,
+    "<p$1><br></p>",
+  );
+}
+
 /** Convert legacy plain-text lyrics into simple HTML paragraphs. */
 export function lyricsToEditorHtml(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  if (/<[a-z][\s\S]*>/i.test(trimmed)) return value;
+  if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+    return preserveLyricsBlankLines(value);
+  }
 
   const escape = (s: string) =>
     s
@@ -30,10 +43,12 @@ export function lyricsToEditorHtml(value: string) {
 
 /** Strip risky tags/handlers from performer-authored lyrics HTML. */
 export function sanitizeLyricsHtml(html: string) {
-  return html
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
-    .replace(/<\/?(?:iframe|object|embed|link|meta)[^>]*>/gi, "")
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(/(href|src)\s*=\s*("|')\s*javascript:[^"']*\2/gi, '$1="#"');
+  return preserveLyricsBlankLines(
+    html
+      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+      .replace(/<\/?(?:iframe|object|embed|link|meta)[^>]*>/gi, "")
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+      .replace(/(href|src)\s*=\s*("|')\s*javascript:[^"']*\2/gi, '$1="#"'),
+  );
 }

@@ -15,7 +15,7 @@ import {
   Smile,
   Underline as UnderlineIcon,
 } from "lucide-react";
-import { lyricsToEditorHtml } from "@/lib/lyrics";
+import { lyricsToEditorHtml, preserveLyricsBlankLines } from "@/lib/lyrics";
 import { cn } from "@/lib/utils";
 
 const FONT_SIZES = [
@@ -124,7 +124,8 @@ export function LyricsEditor({
       },
     },
     onUpdate: ({ editor: current }) => {
-      onChange(current.getHTML());
+      // TipTap omits <br> in empty paragraphs; keep them so stanza gaps render.
+      onChange(preserveLyricsBlankLines(current.getHTML()));
     },
   });
 
