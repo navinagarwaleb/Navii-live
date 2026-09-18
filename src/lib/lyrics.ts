@@ -11,14 +11,24 @@ export function isLyricsEmpty(html: string | null | undefined) {
 }
 
 /**
- * TipTap/ProseMirror serializes blank Enter lines as empty `<p></p>`.
- * Those collapse in readonly HTML; keep a `<br>` so stanza gaps stay visible.
+ * TipTap/ProseMirror serializes blank Enter lines as empty `<p></p>` (or
+ * `<p><br></p>`, sometimes with leftover color spans). Those often collapse
+ * in readonly HTML — especially on iOS Safari — so replace them with a marked
+ * non-breaking-space paragraph that always reserves a full line of height.
  */
 export function preserveLyricsBlankLines(html: string) {
-  return html.replace(
-    /<p(\s[^>]*)?>(?:\s|&nbsp;|\u200B)*<\/p>/gi,
-    "<p$1><br></p>",
-  );
+  return html.replace(/<p(\s[^>]*)?>([\s\S]*?)<\/p>/gi, (match, _attrs, inner) => {
+    const text = String(inner)
+      .replace(/<br\b[^>]*>/gi, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\u200B/g, "")
+      .trim();
+    if (text.length === 0) {
+      return '<p class="lyrics-blank-line">&nbsp;</p>';
+    }
+    return match;
+  });
 }
 
 /** Convert legacy plain-text lyrics into simple HTML paragraphs. */
@@ -35,10 +45,12 @@ export function lyricsToEditorHtml(value: string) {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-  return value
-    .split(/\n/)
-    .map((line) => `<p>${line ? escape(line) : "<br>"}</p>`)
-    .join("");
+  return preserveLyricsBlankLines(
+    value
+      .split(/\n/)
+      .map((line) => `<p>${line ? escape(line) : "<br>"}</p>`)
+      .join(""),
+  );
 }
 
 /** Strip risky tags/handlers from performer-authored lyrics HTML. */

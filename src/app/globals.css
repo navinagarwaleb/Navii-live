@@ -197,9 +197,18 @@ input {
   margin: 0.35em 0;
 }
 
-/* Empty stanza gaps from TipTap (<p></p>) still take a line of height */
-.lyrics-readonly p:empty {
-  min-height: 1em;
+/*
+ * Stanza gaps: do not rely on empty <p> / <br> alone — iOS Safari often
+ * collapses those. .lyrics-blank-line is injected by preserveLyricsBlankLines.
+ */
+.lyrics-readonly p.lyrics-blank-line {
+  display: block;
+  min-height: 1.65em;
+  margin: 0.55em 0;
+  line-height: 1.65;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
 }
 
 .lyrics-readonly mark {
@@ -210,6 +219,11 @@ input {
 @media (min-width: 640px) {
   .lyrics-readonly {
     font-size: 1.15rem;
+    line-height: 1.7;
+  }
+
+  .lyrics-readonly p.lyrics-blank-line {
+    min-height: 1.7em;
     line-height: 1.7;
   }
 }
