@@ -11,12 +11,15 @@ type ConfirmDialogProps = {
   description?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** Optional third action (e.g. “Don’t save”). Shown instead of cancel when set. */
+  secondaryLabel?: string;
   tone?: "default" | "danger";
   busy?: boolean;
   /** Admin dashboard chrome vs guest paper surfaces. */
   surface?: "admin" | "paper";
   onConfirm: () => void;
   onCancel: () => void;
+  onSecondary?: () => void;
 };
 
 /**
@@ -29,11 +32,13 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
+  secondaryLabel,
   tone = "default",
   busy = false,
   surface = "admin",
   onConfirm,
   onCancel,
+  onSecondary,
 }: ConfirmDialogProps) {
   const titleId = useId();
   const [mounted, setMounted] = useState(false);
@@ -59,11 +64,13 @@ export function ConfirmDialog({
   if (!open || !mounted) return null;
 
   const isAdmin = surface === "admin";
+  const leftLabel = secondaryLabel ?? cancelLabel;
+  const onLeft = secondaryLabel ? (onSecondary ?? onCancel) : onCancel;
 
   return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-[100] grid place-items-center p-4",
+        "fixed inset-0 z-[110] grid place-items-center p-4",
         isAdmin ? "bg-black/55" : "bg-ink/45",
       )}
       role="presentation"
@@ -125,7 +132,7 @@ export function ConfirmDialog({
           <button
             type="button"
             disabled={busy}
-            onClick={onCancel}
+            onClick={onLeft}
             className={cn(
               "min-h-[44px] rounded-full text-sm font-semibold transition disabled:opacity-40",
               isAdmin
@@ -133,7 +140,7 @@ export function ConfirmDialog({
                 : "border border-border text-ink hover:bg-selected",
             )}
           >
-            {cancelLabel}
+            {leftLabel}
           </button>
           <button
             type="button"

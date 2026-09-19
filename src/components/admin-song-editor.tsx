@@ -79,6 +79,15 @@ function songSubtitle(artist: string, tags: string[]) {
   return `${artist} · ${tags.join(" · ")}`;
 }
 
+function normalizeLyricsForCompare(value: string | null | undefined) {
+  return isLyricsEmpty(value) ? "" : (value ?? "").trim();
+}
+
+function sameTagList(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  return a.every((tag, index) => tag === b[index]);
+}
+
 export function AdminSongEditor({ performer }: { performer: Performer }) {
   const performerId = performer.id;
   const [supabase] = useState(() => createSupabaseBrowserClient());
@@ -96,6 +105,12 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
   const [selectedCustom, setSelectedCustom] = useState<string[]>([]);
   const [editLyrics, setEditLyrics] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmLeaveEdit, setConfirmLeaveEdit] = useState(false);
+  const [editBaseline, setEditBaseline] = useState<{
+    lyrics: string;
+    catalogTags: string[];
+    selectedCustom: string[];
+  } | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [pendingRemoveSong, setPendingRemoveSong] = useState<Song | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -282,15 +297,53 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
     const songTags = new Set(
       (song.tags ?? []).map((tag) => tag.trim().toLowerCase()),
     );
-    const catalog = (song.tags ?? []).filter(
-      (tag) => !customTags.includes(tag.trim().toLowerCase()),
+    const catalog = normalizeTags(
+      (song.tags ?? []).filter(
+        (tag) => !customTags.includes(tag.trim().toLowerCase()),
+      ),
     );
+    const selected = customTags.filter((tag) => songTags.has(tag));
+    const lyrics = song.lyrics ?? "";
     setEditingSong(song);
-    setEditCatalogTags(normalizeTags(catalog));
-    setSelectedCustom(customTags.filter((tag) => songTags.has(tag)));
-    setEditLyrics(song.lyrics ?? "");
+    setEditCatalogTags(catalog);
+    setSelectedCustom(selected);
+    setEditLyrics(lyrics);
+    setEditBaseline({
+      lyrics,
+      catalogTags: catalog,
+      selectedCustom: selected,
+    });
+    setConfirmLeaveEdit(false);
     setError("");
     setMessage("");
+  }
+
+  function isEditDirty() {
+    if (!editingSong || !editBaseline) return false;
+    if (
+      normalizeLyricsForCompare(editLyrics) !==
+      normalizeLyricsForCompare(editBaseline.lyrics)
+    ) {
+      return true;
+    }
+    if (!sameTagList(editCatalogTags, editBaseline.catalogTags)) return true;
+    if (!sameTagList(selectedCustom, editBaseline.selectedCustom)) return true;
+    return false;
+  }
+
+  function closeEditModal() {
+    setConfirmLeaveEdit(false);
+    setEditBaseline(null);
+    setEditingSong(null);
+  }
+
+  function requestCloseEdit() {
+    if (savingEdit || (editingSong && removingId === editingSong.id)) return;
+    if (isEditDirty()) {
+      setConfirmLeaveEdit(true);
+      return;
+    }
+    closeEditModal();
   }
 
   function toggleCustomTag(tag: string) {
@@ -357,6 +410,8 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
         current.map((item) => (item.id === song.id ? song : item)),
       );
       setMessage(`Updated “${song.title}”.`);
+      setConfirmLeaveEdit(false);
+      setEditBaseline(null);
       setEditingSong(null);
     }
     setSavingEdit(false);
@@ -417,7 +472,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
 
     setSongs((current) => current.filter((item) => item.id !== song.id));
     setMessage(`Removed “${song.title}”.`);
-    if (editingSong?.id === song.id) setEditingSong(null);
+    if (editingSong?.id === song.id) closeEditModal();
     setPendingRemoveSong(null);
     setRemovingId(null);
   }
@@ -431,9 +486,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
             aria-modal="true"
             aria-labelledby="edit-song-title"
             onClick={() => {
-              if (!savingEdit && removingId !== editingSong.id) {
-                setEditingSong(null);
-              }
+              requestCloseEdit();
             }}
           >
             <div
@@ -477,7 +530,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                   type="button"
                   aria-label="Close"
                   disabled={savingEdit || removingId === editingSong.id}
-                  onClick={() => setEditingSong(null)}
+                  onClick={() => requestCloseEdit()}
                   className="grid size-9 shrink-0 place-items-center rounded-full text-[#A8A29E] transition hover:bg-white/10 hover:text-[#FAFAF9]"
                 >
                   <X size={16} />
@@ -521,7 +574,14 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                     <Link
                       href={adminSettingsHref({ from: "songs", hash: "custom-tags" })}
                       className="font-semibold text-[#FAFAF9] underline underline-offset-2"
-                      onClick={() => setEditingSong(null)}
+                      onClick={(event) => {
+                        if (isEditDirty()) {
+                          event.preventDefault();
+                          setConfirmLeaveEdit(true);
+                        } else {
+                          closeEditModal();
+                        }
+                      }}
                     >
                       Manage tags in profile
                     </Link>
@@ -573,7 +633,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
                 <button
                   type="button"
                   disabled={savingEdit || removingId === editingSong.id}
-                  onClick={() => setEditingSong(null)}
+                  onClick={() => requestCloseEdit()}
                   className="min-h-[44px] rounded-full border border-white/15 text-sm font-semibold text-[#FAFAF9] transition hover:bg-white/5 disabled:opacity-40"
                 >
                   Cancel
@@ -988,6 +1048,18 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
       </div>
 
       {editModal}
+
+      <ConfirmDialog
+        open={confirmLeaveEdit}
+        title="Save changes?"
+        description="You have unsaved lyrics or tag edits. Save before leaving?"
+        confirmLabel="Save"
+        secondaryLabel="Don't save"
+        busy={savingEdit}
+        onCancel={() => setConfirmLeaveEdit(false)}
+        onSecondary={() => closeEditModal()}
+        onConfirm={() => void saveEdit()}
+      />
 
       <ConfirmDialog
         open={Boolean(pendingRemoveSong)}

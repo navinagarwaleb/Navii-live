@@ -16,10 +16,11 @@ import { cn } from "@/lib/utils";
 
 type ScrollSpeed = "slow" | "medium" | "fast";
 
-const SPEED_PX_PER_SEC: Record<ScrollSpeed, number> = {
-  slow: 18,
-  medium: 36,
-  fast: 64,
+/** Time between each one-line advance while auto-scrolling. */
+const SPEED_MS_PER_LINE: Record<ScrollSpeed, number> = {
+  slow: 4000,
+  medium: 2500,
+  fast: 1400,
 };
 
 const SPEED_OPTIONS: { id: ScrollSpeed; label: string }[] = [
@@ -35,6 +36,30 @@ type PerformanceLyricsViewerProps = {
   onActiveEntryIdChange: (id: string) => void;
   onClose: () => void;
 };
+
+function advanceOneLine(container: HTMLDivElement) {
+  const lines = container.querySelectorAll<HTMLElement>(".lyrics-readonly p");
+  if (lines.length === 0) return false;
+
+  const currentTop = container.scrollTop;
+  let next: HTMLElement | null = null;
+  for (const line of lines) {
+    if (line.offsetTop > currentTop + 4) {
+      next = line;
+      break;
+    }
+  }
+
+  if (!next) {
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    return false;
+  }
+
+  container.scrollTo({ top: next.offsetTop, behavior: "smooth" });
+
+  const maxScroll = container.scrollHeight - container.clientHeight;
+  return next.offsetTop < maxScroll - 2;
+}
 
 export function PerformanceLyricsViewer({
   open,
@@ -71,40 +96,27 @@ export function PerformanceLyricsViewer({
     if (!open || !hasLyrics) setAutoScroll(false);
   }, [open, hasLyrics]);
 
-  // Smooth auto-scroll loop.
+  // Advance one lyric line at a time (reading pace).
   useEffect(() => {
     if (!open || !autoScroll || !hasLyrics) return;
 
-    let frame = 0;
-    let last = performance.now();
-    const pxPerSec = SPEED_PX_PER_SEC[speed];
+    const intervalMs = SPEED_MS_PER_LINE[speed];
 
-    function tick(now: number) {
+    const id = window.setInterval(() => {
       const node = scrollRef.current;
       if (!node) return;
 
-      const elapsed = Math.min(now - last, 64);
-      last = now;
       const maxScroll = node.scrollHeight - node.clientHeight;
-
       if (maxScroll <= 0) {
         setAutoScroll(false);
         return;
       }
 
-      const next = node.scrollTop + (pxPerSec * elapsed) / 1000;
-      if (next >= maxScroll - 0.5) {
-        node.scrollTop = maxScroll;
-        setAutoScroll(false);
-        return;
-      }
+      const hasMore = advanceOneLine(node);
+      if (!hasMore) setAutoScroll(false);
+    }, intervalMs);
 
-      node.scrollTop = next;
-      frame = requestAnimationFrame(tick);
-    }
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return () => window.clearInterval(id);
   }, [open, autoScroll, hasLyrics, speed]);
 
   useEffect(() => {
@@ -117,7 +129,6 @@ export function PerformanceLyricsViewer({
         return;
       }
       if (event.key === " ") {
-        // Space toggles auto-scroll when lyrics are present.
         if (!hasLyrics) return;
         event.preventDefault();
         setAutoScroll((current) => !current);
