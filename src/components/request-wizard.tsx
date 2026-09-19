@@ -402,40 +402,51 @@ export function RequestWizard({ performer }: { performer: Performer }) {
     setError("");
     const dedicationValue =
       dedicationOverride !== undefined ? dedicationOverride : dedication;
+    const isExampleSong = song.id.startsWith("demo-");
+    const localRequest: SongRequest = {
+      id: isExampleSong ? song.id : `local-${Date.now()}`,
+      occasion,
+      song_id: isExampleSong ? null : song.id,
+      song_title: song.title,
+      artist: song.artist,
+      requester_name: requesterName.trim(),
+      dedication: dedicationValue.trim() || null,
+      status: "pending",
+      performer_id: performer.id,
+      created_at: new Date().toISOString(),
+    };
 
-    if (supabase) {
-      const { data: insertedRequest, error: submitError } = await supabase
-        .from("requests")
-        .insert({
-          occasion,
-          song_id: song.id.startsWith("demo-") ? null : song.id,
-          song_title: song.title,
-          artist: song.artist,
-          requester_name: requesterName.trim(),
-          dedication: dedicationValue.trim() || null,
-          status: "pending",
-          performer_id: performer.id,
-        })
-        .select("*")
-        .single();
+    // Example tiles are UI previews only — don’t write them to the queue.
+    if (supabase && !isExampleSong) {
+      // Insert without .select(): anon guests often can’t read requests back (RLS).
+      const { error: submitError } = await supabase.from("requests").insert({
+        occasion,
+        song_id: song.id,
+        song_title: song.title,
+        artist: song.artist,
+        requester_name: requesterName.trim(),
+        dedication: dedicationValue.trim() || null,
+        status: "pending",
+        performer_id: performer.id,
+      });
 
-      if (submitError || !insertedRequest) {
+      if (submitError) {
         console.error(
           "Unable to submit song request:",
           JSON.stringify(submitError, null, 2),
-          submitError?.message,
-          submitError?.details,
-          submitError?.hint,
+          submitError.message,
+          submitError.details,
+          submitError.hint,
         );
         setError("We couldn’t send your request. Please try again.");
         setSubmitting(false);
         return;
       }
-      setSubmittedRequest(insertedRequest as SongRequest);
-    } else {
+    } else if (!supabase) {
       await new Promise((resolve) => window.setTimeout(resolve, 650));
     }
 
+    setSubmittedRequest(localRequest);
     setSubmitting(false);
     goToStep(5);
   }
