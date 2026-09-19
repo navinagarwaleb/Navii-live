@@ -202,14 +202,6 @@ export function PerformanceLyricsViewer({
         <div
           ref={scrollRef}
           className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5"
-          onWheel={() => {
-            if (!autoScroll) return;
-            setAutoScroll(false);
-          }}
-          onTouchMove={() => {
-            if (!autoScroll) return;
-            setAutoScroll(false);
-          }}
         >
           {hasLyrics ? (
             <div
