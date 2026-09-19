@@ -410,9 +410,7 @@ export function AdminSongEditor({ performer }: { performer: Performer }) {
         current.map((item) => (item.id === song.id ? song : item)),
       );
       setMessage(`Updated “${song.title}”.`);
-      setConfirmLeaveEdit(false);
-      setEditBaseline(null);
-      setEditingSong(null);
+      closeEditModal();
     }
     setSavingEdit(false);
   }
