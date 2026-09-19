@@ -81,66 +81,24 @@ const occasions = [
   { emoji: "🌙", label: "Late Night Request" },
 ];
 
-const demoSongs: Song[] = [
+const EXAMPLE_SONGS: Song[] = [
   {
     id: "demo-1",
-    title: "Perfect",
-    artist: "Ed Sheeran",
-    tags: ["romantic & slow", "sing-alongs"],
+    title: "Example Song 1",
+    artist: "Sample Artist",
+    tags: [],
   },
   {
     id: "demo-2",
-    title: "Until I Found You",
-    artist: "Stephen Sanchez",
-    tags: ["romantic & slow"],
+    title: "Example Song 2",
+    artist: "Sample Artist",
+    tags: [],
   },
   {
     id: "demo-3",
-    title: "A Thousand Years",
-    artist: "Christina Perri",
-    tags: ["sing-alongs", "romantic & slow"],
-  },
-  {
-    id: "demo-4",
-    title: "Can’t Help Falling in Love",
-    artist: "Elvis Presley",
-    tags: ["classic rock", "sing-alongs"],
-  },
-  {
-    id: "demo-5",
-    title: "Yellow",
-    artist: "Coldplay",
-    tags: ["sing-alongs", "crowd favourites"],
-  },
-  {
-    id: "demo-6",
-    title: "You Are the Reason",
-    artist: "Calum Scott",
-    tags: ["romantic & slow"],
-  },
-  {
-    id: "demo-7",
-    title: "All of Me",
-    artist: "John Legend",
-    tags: ["sing-alongs", "romantic & slow"],
-  },
-  {
-    id: "demo-8",
-    title: "Lover",
-    artist: "Taylor Swift",
-    tags: ["sing-alongs", "new / fresh"],
-  },
-  {
-    id: "demo-9",
-    title: "I Won’t Give Up",
-    artist: "Jason Mraz",
-    tags: ["late night vibe"],
-  },
-  {
-    id: "demo-10",
-    title: "Thinking Out Loud",
-    artist: "Ed Sheeran",
-    tags: ["pub anthems", "sing-alongs"],
+    title: "Example Song 3",
+    artist: "Sample Artist",
+    tags: [],
   },
 ];
 
@@ -209,6 +167,7 @@ export function RequestWizard({ performer }: { performer: Performer }) {
   const [step, setStep] = useState(1);
   const [occasion, setOccasion] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
+  const [usingExampleSongs, setUsingExampleSongs] = useState(false);
   const [song, setSong] = useState<Song | null>(null);
   const [genreFilter, setGenreFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -264,7 +223,8 @@ export function RequestWizard({ performer }: { performer: Performer }) {
     async function loadSongs() {
       if (!supabase) {
         if (active) {
-          setSongs(demoSongs);
+          setSongs(EXAMPLE_SONGS);
+          setUsingExampleSongs(true);
           setLoadingSongs(false);
         }
         return;
@@ -290,15 +250,16 @@ export function RequestWizard({ performer }: { performer: Performer }) {
         );
       }
 
-      const nextSongs =
-        songsError || !data?.length
-          ? demoSongs
-          : (data as Song[]).map((item) => ({
-              ...item,
-              tags: item.tags ?? [],
-            }));
+      const hasCatalog = !songsError && Boolean(data?.length);
+      const nextSongs = hasCatalog
+        ? (data as Song[]).map((item) => ({
+            ...item,
+            tags: item.tags ?? [],
+          }))
+        : EXAMPLE_SONGS;
 
       setSongs(nextSongs);
+      setUsingExampleSongs(!hasCatalog);
       setLoadingSongs(false);
     }
 
@@ -751,52 +712,73 @@ export function RequestWizard({ performer }: { performer: Performer }) {
             <StepIntro
               eyebrow="Choose your tune"
               title="What song are we playing?"
-              description="Which sounds like you?"
+              description={
+                usingExampleSongs
+                  ? undefined
+                  : "Which sounds like you?"
+              }
             />
 
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {availableFilters.map((filter) => {
-                const selected = genreFilter === filter;
-                const count = tagCounts[filter] ?? 0;
-                return (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => setGenreFilter(filter)}
-                    className={cn(
-                      "min-h-[28px] rounded-full border border-border bg-field px-3 py-1 text-[11px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
-                      !selected && "hover:border-border hover:bg-field",
-                      selected &&
-                        "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
-                    )}
-                  >
-                    {filter}
-                    <span className="ml-1 text-[10px] text-muted">
-                      ({count})
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {usingExampleSongs ? (
+              <p className="mt-4 rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm leading-snug text-mist">
+                <strong className="font-semibold text-ink">
+                  {performer.display_name}
+                </strong>{" "}
+                has not added any songs to request yet. Try these examples to
+                see how requests work.
+              </p>
+            ) : (
+              <>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {availableFilters.map((filter) => {
+                    const selected = genreFilter === filter;
+                    const count = tagCounts[filter] ?? 0;
+                    return (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setGenreFilter(filter)}
+                        className={cn(
+                          "min-h-[28px] rounded-full border border-border bg-field px-3 py-1 text-[11px] leading-[1.1] font-normal text-ink transition-[background-color,border-color,color,box-shadow]",
+                          !selected && "hover:border-border hover:bg-field",
+                          selected &&
+                            "border-[#e4c29b] bg-[#f3e9df] text-deep-blue shadow-[inset_0_0_0_1px_#e4c29b]",
+                        )}
+                      >
+                        {filter}
+                        <span className="ml-1 text-[10px] text-muted">
+                          ({count})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-            <input
-              className="mt-4 min-h-[48px] w-full rounded-full border border-border bg-field px-5 text-sm text-ink shadow-xs outline-none transition placeholder:text-muted focus:border-line-strong focus:ring-4 focus:ring-accent/25"
-              placeholder="Search by song or artist..."
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              aria-label="Search by song or artist"
-            />
+                <input
+                  className="mt-4 min-h-[48px] w-full rounded-full border border-border bg-field px-5 text-sm text-ink shadow-xs outline-none transition placeholder:text-muted focus:border-line-strong focus:ring-4 focus:ring-accent/25"
+                  placeholder="Search by song or artist..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  aria-label="Search by song or artist"
+                />
 
-            <p className="mt-3 text-sm text-mist">
-              {filteredSongs.length} song
-              {filteredSongs.length === 1 ? "" : "s"}
-              {genreFilter !== "All" ? ` · ${genreFilter}` : ""}
-              {searchQuery.trim() ? ` · “${searchQuery.trim()}”` : ""}
-            </p>
+                <p className="mt-3 text-sm text-mist">
+                  {filteredSongs.length} song
+                  {filteredSongs.length === 1 ? "" : "s"}
+                  {genreFilter !== "All" ? ` · ${genreFilter}` : ""}
+                  {searchQuery.trim() ? ` · “${searchQuery.trim()}”` : ""}
+                </p>
+              </>
+            )}
 
-            <div className="mt-3 grid grid-cols-3 gap-2.5">
+            <div
+              className={cn(
+                "grid grid-cols-3 gap-2.5",
+                usingExampleSongs ? "mt-4" : "mt-3",
+              )}
+            >
               {loadingSongs ? (
-                Array.from({ length: 6 }, (_, index) => (
+                Array.from({ length: usingExampleSongs ? 3 : 6 }, (_, index) => (
                   <div
                     key={index}
                     className="flex min-h-[92px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-field px-2 py-3.5"
