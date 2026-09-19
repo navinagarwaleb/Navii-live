@@ -256,7 +256,7 @@ export function PerformanceLyricsViewer({
                 className={cn(
                   "inline-flex h-8 min-h-[32px] items-center justify-center rounded-full px-2.5 text-[11px] font-semibold leading-none transition disabled:opacity-35 sm:px-3 sm:text-[12px]",
                   speed === option.id
-                    ? "bg-white/15 text-[#FAFAF9]"
+                    ? "bg-[#FAFAF9] font-bold text-[#1C1917]"
                     : "text-[#A8A29E] hover:text-[#FAFAF9]",
                 )}
               >
